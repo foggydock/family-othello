@@ -106,6 +106,13 @@
   .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;z-index:60;opacity:0;transition:opacity .3s;pointer-events:none;}
   .toast.show{opacity:1;}
 
+  /* generic modal (replaces native prompt/confirm which can misbehave on iPad Safari) */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);display:none;align-items:center;justify-content:center;z-index:70;padding:20px;}
+  .modal-overlay.active{display:flex;}
+  .modal-card{background:#fff;border-radius:18px;padding:22px 20px;max-width:320px;width:100%;}
+  .modal-message{font-size:15px;line-height:1.5;}
+  .modal-input{font-family:inherit;font-size:16px;padding:10px;border-radius:10px;border:1px solid var(--line);width:100%;margin-top:12px;}
+
   /* history */
   #historyList{display:flex;flex-direction:column;gap:8px;}
   .history-empty{color:#999;font-size:13px;padding:8px 0;}
@@ -227,6 +234,17 @@
 
 <div class="toast" id="toast"></div>
 
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-card">
+    <div class="modal-message" id="modalMessage"></div>
+    <input type="text" id="modalInput" class="modal-input" style="display:none;">
+    <div class="row" style="margin-top:16px;">
+      <button class="ghost full" id="modalCancelBtn">キャンセル</button>
+      <button class="full" id="modalOkBtn">OK</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   "use strict";
@@ -267,6 +285,28 @@
     localStorage.setItem(LS_SETTINGS, JSON.stringify({mode,p1PhotoId,p2PhotoId,theme,hintsEnabled}));
   }
 
+  // ---------- generic modal (replaces native prompt/confirm) ----------
+  function showConfirm(message, onOk){
+    $("modalMessage").textContent = message;
+    $("modalInput").style.display = "none";
+    $("modalOverlay").classList.add("active");
+    $("modalOkBtn").onclick = ()=>{ $("modalOverlay").classList.remove("active"); onOk(); };
+    $("modalCancelBtn").onclick = ()=>{ $("modalOverlay").classList.remove("active"); };
+  }
+  function showPrompt(message, defaultValue, onOk){
+    $("modalMessage").textContent = message;
+    const input = $("modalInput");
+    input.style.display = "block";
+    input.value = defaultValue || "";
+    $("modalOverlay").classList.add("active");
+    setTimeout(()=>{ input.focus(); }, 100);
+    $("modalOkBtn").onclick = ()=>{
+      $("modalOverlay").classList.remove("active");
+      onOk(input.value.trim() || defaultValue);
+    };
+    $("modalCancelBtn").onclick = ()=>{ $("modalOverlay").classList.remove("active"); };
+  }
+
   function showToast(msg){
     const t = $("toast");
     t.textContent = msg;
@@ -296,13 +336,13 @@
       btn.onclick = (e)=>{
         e.stopPropagation();
         const id = btn.dataset.id;
-        if(confirm("この写真を削除しますか？")){
+        showConfirm("この写真を削除しますか？", ()=>{
           photos = photos.filter(p=>p.id!==id);
           if(p1PhotoId===id) p1PhotoId=null;
           if(p2PhotoId===id) p2PhotoId=null;
           savePhotos(); saveSettings();
           renderGallery(); renderPickers();
-        }
+        });
       };
     });
   }
@@ -312,12 +352,13 @@
     if(!file) return;
     const reader = new FileReader();
     reader.onload = (ev)=>{
-      const name = prompt("この写真の名前は？（例：おとうさん）", "") || "写真";
       resizeImage(ev.target.result, 300, (dataUrl)=>{
-        photos.push({id: "ph_"+Date.now(), name, dataUrl});
-        savePhotos();
-        renderGallery();
-        renderPickers();
+        showPrompt("この写真の名前は？（例：おとうさん）", "写真", (name)=>{
+          photos.push({id: "ph_"+Date.now(), name, dataUrl});
+          savePhotos();
+          renderGallery();
+          renderPickers();
+        });
       });
     };
     reader.readAsDataURL(file);
@@ -677,10 +718,10 @@
     });
   }
   $("clearHistoryBtn").onclick = ()=>{
-    if(confirm("対戦記録をすべて削除しますか？")){
+    showConfirm("対戦記録をすべて削除しますか？", ()=>{
       localStorage.removeItem(LS_HISTORY);
       renderHistory();
-    }
+    });
   };
 
   $("resultCloseBtn").onclick = ()=>{
@@ -700,7 +741,7 @@
 
   $("backHomeBtn").onclick = ()=>{ renderHistory(); showScreen("homeScreen"); };
   $("restartBtn").onclick = ()=>{
-    if(confirm("最初からやり直しますか？")) startGame();
+    showConfirm("最初からやり直しますか？", ()=>{ startGame(); });
   };
 
   function showScreen(id){
