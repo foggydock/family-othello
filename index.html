@@ -193,7 +193,7 @@
     <div id="historyList"></div>
   </div>
 
-  <div style="text-align:center;font-size:10px;color:#ccc;padding:8px 0 20px;">build 2026-07-11-d</div>
+  <div style="text-align:center;font-size:10px;color:#ccc;padding:8px 0 20px;">build 2026-07-11-e</div>
 </div>
 
 <!-- ============ GAME SCREEN ============ -->
@@ -357,35 +357,42 @@
     const file = e.target.files[0];
     if(!file) return;
     showToast("写真を読み込み中...");
-    const reader = new FileReader();
-    reader.onerror = ()=>{ showToast("写真を読み込めませんでした"); };
-    reader.onload = (ev)=>{
-      resizeImage(ev.target.result, 300, (dataUrl)=>{
-        showPrompt("この写真の名前は？", "例：おとうさん（空欄でもOK）", (name)=>{
-          photos.push({id: "ph_"+Date.now(), name, dataUrl});
-          savePhotos();
-          renderGallery();
-          renderPickers();
-        });
-      }, ()=>{ showToast("写真の処理に失敗しました。別の写真でお試しください"); });
-    };
-    reader.readAsDataURL(file);
+    // Use an object URL (not readAsDataURL) so we never hold a huge base64
+    // string in memory. Important for low-RAM devices like iPad 5th gen.
+    resizeImageFromFile(file, 300, (dataUrl)=>{
+      showPrompt("この写真の名前は？", "例：おとうさん（空欄でもOK）", (name)=>{
+        photos.push({id: "ph_"+Date.now(), name, dataUrl});
+        savePhotos();
+        renderGallery();
+        renderPickers();
+      });
+    }, (why)=>{ showToast("写真を処理できませんでした（" + why + "）別の写真でお試しください"); });
     e.target.value = "";
   });
 
-  function resizeImage(dataUrl, maxSize, cb, onError){
+  function resizeImageFromFile(file, maxSize, cb, onError){
+    const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = ()=>{
-      let w = img.width, h = img.height;
-      if(w>h){ if(w>maxSize){ h = h*maxSize/w; w = maxSize; } }
-      else { if(h>maxSize){ w = w*maxSize/h; h = maxSize; } }
-      const canvas = document.createElement("canvas");
-      canvas.width = w; canvas.height = h;
-      canvas.getContext("2d").drawImage(img,0,0,w,h);
-      cb(canvas.toDataURL("image/jpeg", 0.85));
+      try{
+        let w = img.width, h = img.height;
+        if(!w || !h){ URL.revokeObjectURL(url); if(onError) onError("サイズ不明"); return; }
+        if(w>h){ if(w>maxSize){ h = h*maxSize/w; w = maxSize; } }
+        else { if(h>maxSize){ w = w*maxSize/h; h = maxSize; } }
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(w); canvas.height = Math.round(h);
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        const out = canvas.toDataURL("image/jpeg", 0.82);
+        URL.revokeObjectURL(url);
+        if(!out || out.length < 100){ if(onError) onError("変換失敗"); return; }
+        cb(out);
+      }catch(err){
+        URL.revokeObjectURL(url);
+        if(onError) onError("メモリ不足かも");
+      }
     };
-    img.onerror = ()=>{ if(onError) onError(); };
-    img.src = dataUrl;
+    img.onerror = ()=>{ URL.revokeObjectURL(url); if(onError) onError("画像を開けない"); };
+    img.src = url;
   }
 
   function escapeHtml(s){
