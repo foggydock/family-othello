@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>マイオセロ</title>
+<style>
+  :root{
+    --bg:#f3f0e8;
+    --card:#ffffff;
+    --text:#3a332b;
+    --accent:#e8956b;
+    --accent2:#7fb0a0;
+    --line:#d8d2c4;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;overflow-x:hidden;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    min-height:100vh;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .screen{display:none;min-height:100vh;padding:16px;padding-top:calc(16px + env(safe-area-inset-top));}
+  .screen.active{display:block;}
+  h1{font-size:22px;margin:4px 0 16px;text-align:center;}
+  h2{font-size:17px;margin:20px 0 10px;}
+  .card{background:var(--card);border-radius:16px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+  button{
+    font-family:inherit;font-size:15px;border:none;border-radius:12px;
+    padding:12px 16px;cursor:pointer;background:var(--accent);color:#fff;font-weight:600;
+  }
+  button.secondary{background:var(--accent2);}
+  button.ghost{background:#eee;color:var(--text);font-weight:500;}
+  button:active{filter:brightness(0.92);}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .full{width:100%;}
+
+  /* photo gallery */
+  .photo-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .photo-item{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;border:3px solid transparent;background:#eee;}
+  .photo-item img{width:100%;height:100%;object-fit:cover;display:block;}
+  .photo-item .name{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.45);color:#fff;font-size:10px;text-align:center;padding:2px 0;}
+  .photo-item.selected{border-color:var(--accent);}
+  .photo-item .del{position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.5);color:#fff;border-radius:50%;width:20px;height:20px;font-size:12px;line-height:20px;text-align:center;}
+  .add-photo{display:flex;align-items:center;justify-content:center;aspect-ratio:1;border-radius:12px;border:2px dashed var(--line);color:#999;font-size:28px;background:#faf9f6;}
+  input[type=file]{display:none;}
+
+  .picker-label{font-size:13px;color:#888;margin-bottom:6px;}
+  select{font-family:inherit;font-size:15px;padding:10px;border-radius:10px;border:1px solid var(--line);width:100%;background:#fff;}
+
+  /* game screen */
+  #gameScreen{padding:10px;}
+  .scorebar{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;}
+  .player-badge{display:flex;align-items:center;gap:8px;background:var(--card);border-radius:14px;padding:6px 10px;flex:1;box-shadow:0 2px 6px rgba(0,0,0,0.06);}
+  .player-badge.turn{outline:3px solid var(--accent);}
+  .player-badge img{width:34px;height:34px;border-radius:50%;object-fit:cover;}
+  .player-badge .score{font-size:18px;font-weight:700;}
+  .player-badge .pname{font-size:11px;color:#888;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+  .board-wrap{border-radius:16px;padding:8px;box-shadow:0 4px 14px rgba(0,0,0,0.15);}
+  .board{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);aspect-ratio:1;border-radius:8px;overflow:hidden;}
+  .cell{position:relative;display:flex;align-items:center;justify-content:center;border:1px solid rgba(0,0,0,0.15);}
+  .cell .piece{width:82%;height:82%;border-radius:50%;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,0.35);transform:scale(0);transition:transform .25s ease;background:#fff;}
+  .cell .piece.show{transform:scale(1);}
+  .cell .piece img{width:100%;height:100%;object-fit:cover;display:block;}
+  .cell.hint::after{content:"";position:absolute;width:22%;height:22%;border-radius:50%;background:rgba(255,255,255,0.55);}
+
+  /* themes */
+  .theme-park .board-wrap{background:linear-gradient(160deg,#8bbf6f,#5f9a4f);}
+  .theme-park .cell{background:linear-gradient(160deg,#79b25e,#4f8a41);}
+  .theme-space .board-wrap{background:linear-gradient(160deg,#241b4e,#0d0a24);}
+  .theme-space .cell{background:linear-gradient(160deg,#372a6e,#1a1440);border-color:rgba(255,255,255,0.12);}
+  .theme-ocean .board-wrap{background:linear-gradient(160deg,#4fb0c9,#1e6f8c);}
+  .theme-ocean .cell{background:linear-gradient(160deg,#3f9fba,#1c6982);}
+
+  #statusMsg{text-align:center;font-size:14px;color:#777;margin:10px 0;min-height:20px;}
+
+  .bottombar{display:flex;gap:10px;margin-top:12px;}
+
+  /* result overlay */
+  #resultOverlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);display:none;align-items:center;justify-content:center;z-index:50;padding:20px;}
+  #resultOverlay.active{display:flex;}
+  .result-card{background:#fff;border-radius:20px;padding:28px 20px;text-align:center;max-width:320px;width:100%;}
+  .result-card img{width:100px;height:100px;border-radius:50%;object-fit:cover;margin:10px auto;display:block;border:4px solid var(--accent);}
+  .result-card h2{margin-top:0;font-size:20px;}
+  .result-score{font-size:15px;color:#666;margin-bottom:16px;}
+
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;z-index:60;opacity:0;transition:opacity .3s;pointer-events:none;}
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<!-- ============ HOME / SETUP SCREEN ============ -->
+<div id="homeScreen" class="screen active">
+  <h1>🎲 マイオセロ</h1>
+
+  <div class="card">
+    <h2 style="margin-top:0;">📸 写真ギャラリー</h2>
+    <div class="picker-label">家族の写真を登録しておくと、対戦のたびに選べます</div>
+    <div id="photoGallery" class="photo-grid"></div>
+    <input type="file" id="photoInput" accept="image/*" capture="environment">
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0;">対戦相手</h2>
+    <div class="row">
+      <button id="modeHuman" class="full">👥 人間 vs 人間</button>
+      <button id="modeCPU" class="full secondary">🤖 人間 vs CPU</button>
+    </div>
+    <div id="modeCheck" style="text-align:center;margin-top:8px;font-size:13px;color:#888;"></div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0;">プレイヤー1（黒担当）の写真</h2>
+    <div id="p1Gallery" class="photo-grid"></div>
+  </div>
+
+  <div class="card" id="p2Card">
+    <h2 style="margin-top:0;">プレイヤー2（白担当）の写真</h2>
+    <div id="p2Gallery" class="photo-grid"></div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0;">盤面テーマ</h2>
+    <select id="themeSelect">
+      <option value="park">🌳 公園</option>
+      <option value="space">🌌 宇宙</option>
+      <option value="ocean">🌊 海</option>
+    </select>
+  </div>
+
+  <button id="startBtn" class="full" style="font-size:17px;padding:16px;">はじめる ▶</button>
+</div>
+
+<!-- ============ GAME SCREEN ============ -->
+<div id="gameScreen" class="screen">
+  <div class="scorebar">
+    <div class="player-badge" id="badgeP1">
+      <img id="imgP1" src="">
+      <div><div class="score" id="scoreP1">2</div><div class="pname" id="nameP1"></div></div>
+    </div>
+    <div style="font-size:12px;color:#999;">VS</div>
+    <div class="player-badge" id="badgeP2">
+      <img id="imgP2" src="">
+      <div><div class="score" id="scoreP2">2</div><div class="pname" id="nameP2"></div></div>
+    </div>
+  </div>
+
+  <div id="statusMsg"></div>
+
+  <div class="board-wrap">
+    <div class="board" id="board"></div>
+  </div>
+
+  <div class="bottombar">
+    <button class="ghost full" id="backHomeBtn">← 設定に戻る</button>
+    <button class="secondary full" id="restartBtn">🔄 やり直す</button>
+  </div>
+</div>
+
+<div id="resultOverlay">
+  <div class="result-card">
+    <div id="resultEmoji" style="font-size:40px;">🎉</div>
+    <h2 id="resultTitle"></h2>
+    <img id="resultImg" src="">
+    <div class="result-score" id="resultScore"></div>
+    <button id="resultCloseBtn" class="full">もう一度</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+  const LS_PHOTOS = "familyOthello_photos_v1";
+  const LS_SETTINGS = "familyOthello_settings_v1";
+
+  const $ = id => document.getElementById(id);
+
+  // ---------- state ----------
+  let photos = loadPhotos(); // [{id,name,dataUrl}]
+  let mode = "human"; // human | cpu
+  let p1PhotoId = null, p2PhotoId = null;
+  let theme = "park";
+
+  let board = []; // 8x8, 0 empty, 1 black(p1), 2 white(p2)
+  let turn = 1;
+  let gameOver = false;
+
+  function loadPhotos(){
+    try{ return JSON.parse(localStorage.getItem(LS_PHOTOS)) || []; }catch(e){ return []; }
+  }
+  function savePhotos(){ localStorage.setItem(LS_PHOTOS, JSON.stringify(photos)); }
+  function loadSettings(){
+    try{
+      const s = JSON.parse(localStorage.getItem(LS_SETTINGS));
+      if(s){
+        mode = s.mode || "human";
+        p1PhotoId = s.p1PhotoId || null;
+        p2PhotoId = s.p2PhotoId || null;
+        theme = s.theme || "park";
+      }
+    }catch(e){}
+  }
+  function saveSettings(){
+    localStorage.setItem(LS_SETTINGS, JSON.stringify({mode,p1PhotoId,p2PhotoId,theme}));
+  }
+
+  function showToast(msg){
+    const t = $("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(()=>t.classList.remove("show"), 1600);
+  }
+
+  function photoById(id){ return photos.find(p=>p.id===id); }
+
+  // ---------- photo gallery (registration) ----------
+  function renderGallery(){
+    const g = $("photoGallery");
+    g.innerHTML = "";
+    photos.forEach(p=>{
+      const el = document.createElement("div");
+      el.className = "photo-item";
+      el.innerHTML = `<img src="${p.dataUrl}"><div class="name">${escapeHtml(p.name)}</div><div class="del" data-id="${p.id}">×</div>`;
+      g.appendChild(el);
+    });
+    const add = document.createElement("div");
+    add.className = "add-photo";
+    add.textContent = "＋";
+    add.onclick = ()=> $("photoInput").click();
+    g.appendChild(add);
+
+    g.querySelectorAll(".del").forEach(btn=>{
+      btn.onclick = (e)=>{
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        if(confirm("この写真を削除しますか？")){
+          photos = photos.filter(p=>p.id!==id);
+          if(p1PhotoId===id) p1PhotoId=null;
+          if(p2PhotoId===id) p2PhotoId=null;
+          savePhotos(); saveSettings();
+          renderGallery(); renderPickers();
+        }
+      };
+    });
+  }
+
+  $("photoInput").addEventListener("change", (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev)=>{
+      const name = prompt("この写真の名前は？（例：おとうさん）", "") || "写真";
+      resizeImage(ev.target.result, 300, (dataUrl)=>{
+        photos.push({id: "ph_"+Date.now(), name, dataUrl});
+        savePhotos();
+        renderGallery();
+        renderPickers();
+      });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  });
+
+  function resizeImage(dataUrl, maxSize, cb){
+    const img = new Image();
+    img.onload = ()=>{
+      let w = img.width, h = img.height;
+      if(w>h){ if(w>maxSize){ h = h*maxSize/w; w = maxSize; } }
+      else { if(h>maxSize){ w = w*maxSize/h; h = maxSize; } }
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img,0,0,w,h);
+      cb(canvas.toDataURL("image/jpeg", 0.85));
+    };
+    img.src = dataUrl;
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+
+  // ---------- player pickers ----------
+  function renderPickers(){
+    renderPicker($("p1Gallery"), p1PhotoId, (id)=>{ p1PhotoId=id; saveSettings(); renderPickers(); });
+    renderPicker($("p2Gallery"), p2PhotoId, (id)=>{ p2PhotoId=id; saveSettings(); renderPickers(); });
+    $("p2Card").style.display = mode==="cpu" ? "none" : "block";
+    $("modeCheck").textContent = mode==="cpu" ? "🤖 プレイヤー2はCPUが担当します" : "";
+  }
+  function renderPicker(container, selectedId, onPick){
+    container.innerHTML = "";
+    if(photos.length===0){
+      container.innerHTML = `<div style="grid-column:1/-1;color:#999;font-size:13px;padding:10px 0;">まず上で写真を登録してください</div>`;
+      return;
+    }
+    photos.forEach(p=>{
+      const el = document.createElement("div");
+      el.className = "photo-item" + (p.id===selectedId ? " selected":"");
+      el.innerHTML = `<img src="${p.dataUrl}"><div class="name">${escapeHtml(p.name)}</div>`;
+      el.onclick = ()=> onPick(p.id);
+      container.appendChild(el);
+    });
+  }
+
+  $("modeHuman").onclick = ()=>{ mode="human"; saveSettings(); renderPickers(); };
+  $("modeCPU").onclick = ()=>{ mode="cpu"; saveSettings(); renderPickers(); };
+  $("themeSelect").onchange = (e)=>{ theme=e.target.value; saveSettings(); };
+
+  $("startBtn").onclick = ()=>{
+    if(!p1PhotoId){ showToast("プレイヤー1の写真を選んでください"); return; }
+    if(mode==="human" && !p2PhotoId){ showToast("プレイヤー2の写真を選んでください"); return; }
+    if(mode==="cpu" && !p2PhotoId){
+      // CPU default icon if no photo picked; but require pick for consistency
+      showToast("CPUの見た目（写真）も選んでください"); return;
+    }
+    startGame();
+  };
+
+  // ---------- othello logic ----------
+  const DIRS = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+
+  function initBoard(){
+    board = Array.from({length:8},()=>Array(8).fill(0));
+    board[3][3]=2; board[3][4]=1; board[4][3]=1; board[4][4]=2;
+    turn = 1;
+    gameOver = false;
+  }
+
+  function inBounds(r,c){ return r>=0&&r<8&&c>=0&&c<8; }
+
+  function flipsFor(b, r, c, player){
+    if(b[r][c]!==0) return [];
+    const opp = player===1?2:1;
+    let allFlips = [];
+    for(const [dr,dc] of DIRS){
+      let rr=r+dr, cc=c+dc;
+      let line=[];
+      while(inBounds(rr,cc) && b[rr][cc]===opp){
+        line.push([rr,cc]);
+        rr+=dr; cc+=dc;
+      }
+      if(line.length>0 && inBounds(rr,cc) && b[rr][cc]===player){
+        allFlips = allFlips.concat(line);
+      }
+    }
+    return allFlips;
+  }
+
+  function validMoves(b, player){
+    const moves = [];
+    for(let r=0;r<8;r++) for(let c=0;c<8;c++){
+      const f = flipsFor(b,r,c,player);
+      if(f.length>0) moves.push({r,c,flips:f});
+    }
+    return moves;
+  }
+
+  function applyMove(b, r, c, player, flips){
+    b[r][c]=player;
+    flips.forEach(([fr,fc])=> b[fr][fc]=player);
+  }
+
+  function countScore(b){
+    let s1=0,s2=0;
+    for(let r=0;r<8;r++) for(let c=0;c<8;c++){ if(b[r][c]===1)s1++; else if(b[r][c]===2)s2++; }
+    return {s1,s2};
+  }
+
+  // ---------- rendering ----------
+  function buildBoardDOM(){
+    const el = $("board");
+    el.innerHTML = "";
+    for(let r=0;r<8;r++){
+      for(let c=0;c<8;c++){
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        cell.dataset.r=r; cell.dataset.c=c;
+        const piece = document.createElement("div");
+        piece.className = "piece";
+        piece.innerHTML = `<img>`;
+        cell.appendChild(piece);
+        cell.onclick = ()=> onCellClick(r,c);
+        el.appendChild(cell);
+      }
+    }
+  }
+
+  function renderBoard(){
+    const cells = $("board").children;
+    const currentMoves = (!gameOver) ? validMoves(board, turn) : [];
+    const moveSet = new Set(currentMoves.map(m=>m.r+"_"+m.c));
+
+    for(let r=0;r<8;r++){
+      for(let c=0;c<8;c++){
+        const idx = r*8+c;
+        const cell = cells[idx];
+        const piece = cell.querySelector(".piece");
+        const img = piece.querySelector("img");
+        const val = board[r][c];
+        if(val===0){
+          piece.classList.remove("show");
+          cell.classList.toggle("hint", !gameOver && mode==="human" ? moveSet.has(r+"_"+c) : (moveSet.has(r+"_"+c) && turn===1));
+        } else {
+          cell.classList.remove("hint");
+          const ph = photoById(val===1?p1PhotoId:p2PhotoId);
+          img.src = ph ? ph.dataUrl : "";
+          piece.classList.add("show");
+        }
+      }
+    }
+
+    updateScoreUI();
+  }
+
+  function updateScoreUI(){
+    const {s1,s2} = countScore(board);
+    $("scoreP1").textContent = s1;
+    $("scoreP2").textContent = s2;
+    $("badgeP1").classList.toggle("turn", turn===1 && !gameOver);
+    $("badgeP2").classList.toggle("turn", turn===2 && !gameOver);
+  }
+
+  function setupPlayerBadges(){
+    const p1 = photoById(p1PhotoId), p2 = photoById(p2PhotoId);
+    $("imgP1").src = p1 ? p1.dataUrl : "";
+    $("imgP2").src = p2 ? p2.dataUrl : "";
+    $("nameP1").textContent = p1 ? p1.name : "P1";
+    $("nameP2").textContent = mode==="cpu" ? "CPU" : (p2 ? p2.name : "P2");
+  }
+
+  function onCellClick(r,c){
+    if(gameOver) return;
+    if(mode==="cpu" && turn===2) return; // CPU turn, ignore taps
+    const flips = flipsFor(board, r, c, turn);
+    if(flips.length===0) return;
+    applyMove(board, r, c, turn, flips);
+    afterMove();
+  }
+
+  function afterMove(){
+    const next = turn===1?2:1;
+    const nextMoves = validMoves(board, next);
+    if(nextMoves.length>0){
+      turn = next;
+    } else {
+      const curMoves = validMoves(board, turn);
+      if(curMoves.length===0){
+        endGame();
+        return;
+      } else {
+        showToast((next===1?nameFor(1):nameFor(2)) + "は打てる場所がないためパス");
+      }
+    }
+    renderBoard();
+    maybeCPUMove();
+  }
+
+  function nameFor(player){
+    if(player===2 && mode==="cpu") return "CPU";
+    const ph = photoById(player===1?p1PhotoId:p2PhotoId);
+    return ph ? ph.name : (player===1?"プレイヤー1":"プレイヤー2");
+  }
+
+  function maybeCPUMove(){
+    if(gameOver) return;
+    if(mode!=="cpu" || turn!==2) return;
+    $("statusMsg").textContent = "🤖 CPUが考え中...";
+    setTimeout(()=>{
+      const moves = validMoves(board, 2);
+      if(moves.length===0){ return; }
+      const best = pickCPUMove(moves);
+      applyMove(board, best.r, best.c, 2, best.flips);
+      $("statusMsg").textContent = "";
+      afterMove();
+    }, 550);
+  }
+
+  const WEIGHT = [
+    [100,-20,10,5,5,10,-20,100],
+    [-20,-50,-2,-2,-2,-2,-50,-20],
+    [10,-2,1,1,1,1,-2,10],
+    [5,-2,1,1,1,1,-2,5],
+    [5,-2,1,1,1,1,-2,5],
+    [10,-2,1,1,1,1,-2,10],
+    [-20,-50,-2,-2,-2,-2,-50,-20],
+    [100,-20,10,5,5,10,-20,100]
+  ];
+
+  function pickCPUMove(moves){
+    let best = null, bestScore = -Infinity;
+    for(const m of moves){
+      let score = WEIGHT[m.r][m.c] + m.flips.length*1.5;
+      if(score>bestScore){ bestScore=score; best=m; }
+    }
+    return best;
+  }
+
+  function endGame(){
+    gameOver = true;
+    renderBoard();
+    const {s1,s2} = countScore(board);
+    let title, imgSrc, emoji;
+    if(s1===s2){
+      title = "ひきわけ！";
+      emoji = "🤝";
+      imgSrc = photoById(p1PhotoId)?.dataUrl || "";
+    } else {
+      const winner = s1>s2?1:2;
+      title = nameFor(winner) + " のかち！";
+      emoji = "🎉";
+      imgSrc = photoById(winner===1?p1PhotoId:p2PhotoId)?.dataUrl || "";
+    }
+    $("resultEmoji").textContent = emoji;
+    $("resultTitle").textContent = title;
+    $("resultImg").src = imgSrc;
+    $("resultScore").textContent = `${nameFor(1)} ${s1} - ${s2} ${nameFor(2)}`;
+    $("resultOverlay").classList.add("active");
+  }
+
+  $("resultCloseBtn").onclick = ()=>{
+    $("resultOverlay").classList.remove("active");
+    startGame();
+  };
+
+  function startGame(){
+    document.body.className = "theme-"+theme;
+    setupPlayerBadges();
+    initBoard();
+    buildBoardDOM();
+    renderBoard();
+    $("statusMsg").textContent = "";
+    showScreen("gameScreen");
+  }
+
+  $("backHomeBtn").onclick = ()=>{ showScreen("homeScreen"); };
+  $("restartBtn").onclick = ()=>{
+    if(confirm("最初からやり直しますか？")) startGame();
+  };
+
+  function showScreen(id){
+    document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+    $(id).classList.add("active");
+  }
+
+  // ---------- init ----------
+  loadSettings();
+  renderGallery();
+  renderPickers();
+  $("themeSelect").value = theme;
+})();
+</script>
+</body>
+</html>
