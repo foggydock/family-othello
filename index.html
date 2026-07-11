@@ -138,7 +138,7 @@
     <h2 style="margin-top:0;">📸 写真ギャラリー</h2>
     <div class="picker-label">家族の写真を登録しておくと、対戦のたびに選べます</div>
     <div id="photoGallery" class="photo-grid"></div>
-    <input type="file" id="photoInput" accept="image/*" capture="environment">
+    <input type="file" id="photoInput" accept="image/*">
   </div>
 
   <div class="card">
@@ -293,16 +293,17 @@
     $("modalOkBtn").onclick = ()=>{ $("modalOverlay").classList.remove("active"); onOk(); };
     $("modalCancelBtn").onclick = ()=>{ $("modalOverlay").classList.remove("active"); };
   }
-  function showPrompt(message, defaultValue, onOk){
+  function showPrompt(message, placeholder, onOk){
     $("modalMessage").textContent = message;
     const input = $("modalInput");
     input.style.display = "block";
-    input.value = defaultValue || "";
+    input.value = "";
+    input.placeholder = placeholder || "";
     $("modalOverlay").classList.add("active");
     setTimeout(()=>{ input.focus(); }, 100);
     $("modalOkBtn").onclick = ()=>{
       $("modalOverlay").classList.remove("active");
-      onOk(input.value.trim() || defaultValue);
+      onOk(input.value.trim());
     };
     $("modalCancelBtn").onclick = ()=>{ $("modalOverlay").classList.remove("active"); };
   }
@@ -350,22 +351,24 @@
   $("photoInput").addEventListener("change", (e)=>{
     const file = e.target.files[0];
     if(!file) return;
+    showToast("写真を読み込み中...");
     const reader = new FileReader();
+    reader.onerror = ()=>{ showToast("写真を読み込めませんでした"); };
     reader.onload = (ev)=>{
       resizeImage(ev.target.result, 300, (dataUrl)=>{
-        showPrompt("この写真の名前は？（例：おとうさん）", "写真", (name)=>{
+        showPrompt("この写真の名前は？", "例：おとうさん（空欄でもOK）", (name)=>{
           photos.push({id: "ph_"+Date.now(), name, dataUrl});
           savePhotos();
           renderGallery();
           renderPickers();
         });
-      });
+      }, ()=>{ showToast("写真の処理に失敗しました。別の写真でお試しください"); });
     };
     reader.readAsDataURL(file);
     e.target.value = "";
   });
 
-  function resizeImage(dataUrl, maxSize, cb){
+  function resizeImage(dataUrl, maxSize, cb, onError){
     const img = new Image();
     img.onload = ()=>{
       let w = img.width, h = img.height;
@@ -376,6 +379,7 @@
       canvas.getContext("2d").drawImage(img,0,0,w,h);
       cb(canvas.toDataURL("image/jpeg", 0.85));
     };
+    img.onerror = ()=>{ if(onError) onError(); };
     img.src = dataUrl;
   }
 
