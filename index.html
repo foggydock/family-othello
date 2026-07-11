@@ -51,19 +51,28 @@
   select{font-family:inherit;font-size:15px;padding:10px;border-radius:10px;border:1px solid var(--line);width:100%;background:#fff;}
 
   /* game screen */
+  :root{ --p1-color:#3b82f6; --p2-color:#ef4444; }
   #gameScreen{padding:10px;}
-  .scorebar{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;}
-  .player-badge{display:flex;align-items:center;gap:8px;background:var(--card);border-radius:14px;padding:6px 10px;flex:1;box-shadow:0 2px 6px rgba(0,0,0,0.06);}
-  .player-badge.turn{outline:3px solid var(--accent);}
-  .player-badge img{width:34px;height:34px;border-radius:50%;object-fit:cover;}
+  .scorebar{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:8px;}
+  .player-badge{display:flex;align-items:center;gap:8px;background:var(--card);border-radius:14px;padding:6px 10px;flex:1;box-shadow:0 2px 6px rgba(0,0,0,0.06);border:3px solid transparent;transition:background .2s,border-color .2s;}
+  .player-badge.turn{outline:3px solid var(--accent);outline-offset:1px;}
+  .player-badge.leading{background:#fff6ea;border-color:#f0c179;}
+  .player-badge.p1 img{border:3px solid var(--p1-color);}
+  .player-badge.p2 img{border:3px solid var(--p2-color);}
+  .player-badge img{width:34px;height:34px;border-radius:50%;object-fit:cover;box-sizing:border-box;}
   .player-badge .score{font-size:18px;font-weight:700;}
   .player-badge .pname{font-size:11px;color:#888;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .player-badge .crown{font-size:13px;margin-left:2px;}
 
-  .board-wrap{border-radius:16px;padding:8px;box-shadow:0 4px 14px rgba(0,0,0,0.15);}
-  .board{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);aspect-ratio:1;border-radius:8px;overflow:hidden;}
-  .cell{position:relative;display:flex;align-items:center;justify-content:center;border:1px solid rgba(0,0,0,0.15);}
-  .cell .piece{width:82%;height:82%;border-radius:50%;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,0.35);transform:scale(0);transition:transform .25s ease;background:#fff;}
+  #leadMsg{text-align:center;font-size:13px;color:#8a7a5c;font-weight:600;margin-bottom:8px;min-height:18px;}
+
+  .board-wrap{border-radius:16px;padding:8px;box-shadow:0 4px 14px rgba(0,0,0,0.15);width:100%;}
+  .board{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);gap:1px;background:rgba(0,0,0,0.22);aspect-ratio:1;width:100%;border-radius:8px;overflow:hidden;}
+  .cell{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;}
+  .cell .piece{width:82%;height:82%;border-radius:50%;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,0.35);transform:scale(0);transition:transform .25s ease;background:#fff;box-sizing:border-box;}
   .cell .piece.show{transform:scale(1);}
+  .cell .piece.p1{border:3px solid var(--p1-color);}
+  .cell .piece.p2{border:3px solid var(--p2-color);}
   .cell .piece img{width:100%;height:100%;object-fit:cover;display:block;}
   .cell.hint::after{content:"";position:absolute;width:22%;height:22%;border-radius:50%;background:rgba(255,255,255,0.55);}
 
@@ -71,11 +80,11 @@
   .theme-park .board-wrap{background:linear-gradient(160deg,#8bbf6f,#5f9a4f);}
   .theme-park .cell{background:linear-gradient(160deg,#79b25e,#4f8a41);}
   .theme-space .board-wrap{background:linear-gradient(160deg,#241b4e,#0d0a24);}
-  .theme-space .cell{background:linear-gradient(160deg,#372a6e,#1a1440);border-color:rgba(255,255,255,0.12);}
+  .theme-space .cell{background:linear-gradient(160deg,#372a6e,#1a1440);}
   .theme-ocean .board-wrap{background:linear-gradient(160deg,#4fb0c9,#1e6f8c);}
   .theme-ocean .cell{background:linear-gradient(160deg,#3f9fba,#1c6982);}
 
-  #statusMsg{text-align:center;font-size:14px;color:#777;margin:10px 0;min-height:20px;}
+  #statusMsg{text-align:center;font-size:14px;color:#777;margin:6px 0;min-height:20px;}
 
   .bottombar{display:flex;gap:10px;margin-top:12px;}
 
@@ -138,16 +147,18 @@
 <!-- ============ GAME SCREEN ============ -->
 <div id="gameScreen" class="screen">
   <div class="scorebar">
-    <div class="player-badge" id="badgeP1">
+    <div class="player-badge p1" id="badgeP1">
       <img id="imgP1" src="">
-      <div><div class="score" id="scoreP1">2</div><div class="pname" id="nameP1"></div></div>
+      <div><div class="score" id="scoreP1">2<span class="crown" id="crownP1"></span></div><div class="pname" id="nameP1"></div></div>
     </div>
     <div style="font-size:12px;color:#999;">VS</div>
-    <div class="player-badge" id="badgeP2">
+    <div class="player-badge p2" id="badgeP2">
       <img id="imgP2" src="">
-      <div><div class="score" id="scoreP2">2</div><div class="pname" id="nameP2"></div></div>
+      <div><div class="score" id="scoreP2">2<span class="crown" id="crownP2"></span></div><div class="pname" id="nameP2"></div></div>
     </div>
   </div>
+
+  <div id="leadMsg"></div>
 
   <div id="statusMsg"></div>
 
@@ -410,6 +421,8 @@
           const ph = photoById(val===1?p1PhotoId:p2PhotoId);
           img.src = ph ? ph.dataUrl : "";
           piece.classList.add("show");
+          piece.classList.toggle("p1", val===1);
+          piece.classList.toggle("p2", val===2);
         }
       }
     }
@@ -419,10 +432,26 @@
 
   function updateScoreUI(){
     const {s1,s2} = countScore(board);
-    $("scoreP1").textContent = s1;
-    $("scoreP2").textContent = s2;
+    $("scoreP1").firstChild.textContent = s1;
+    $("scoreP2").firstChild.textContent = s2;
     $("badgeP1").classList.toggle("turn", turn===1 && !gameOver);
     $("badgeP2").classList.toggle("turn", turn===2 && !gameOver);
+
+    $("badgeP1").classList.toggle("leading", s1>s2);
+    $("badgeP2").classList.toggle("leading", s2>s1);
+    $("crownP1").textContent = s1>s2 ? "👑" : "";
+    $("crownP2").textContent = s2>s1 ? "👑" : "";
+
+    const leadEl = $("leadMsg");
+    if(gameOver){
+      leadEl.textContent = "";
+    } else if(s1===s2){
+      leadEl.textContent = "⚖️ 互角！";
+    } else {
+      const leaderName = s1>s2 ? nameFor(1) : nameFor(2);
+      const diff = Math.abs(s1-s2);
+      leadEl.textContent = `👑 ${leaderName} が ${diff} 個リード中`;
+    }
   }
 
   function setupPlayerBadges(){
