@@ -137,8 +137,12 @@
   <div class="card">
     <h2 style="margin-top:0;">📸 写真ギャラリー</h2>
     <div class="picker-label">家族の写真を登録しておくと、対戦のたびに選べます</div>
-    <div id="photoGallery" class="photo-grid"></div>
-    <input type="file" id="photoInput" accept="image/*">
+    <div id="photoGallery" class="photo-grid">
+      <label class="add-photo" id="addPhotoTile">
+        ＋
+        <input type="file" id="photoInput" accept="image/*">
+      </label>
+    </div>
   </div>
 
   <div class="card">
@@ -188,6 +192,8 @@
     </div>
     <div id="historyList"></div>
   </div>
+
+  <div style="text-align:center;font-size:10px;color:#ccc;padding:8px 0 20px;">build 2026-07-11-d</div>
 </div>
 
 <!-- ============ GAME SCREEN ============ -->
@@ -318,20 +324,19 @@
   function photoById(id){ return photos.find(p=>p.id===id); }
 
   // ---------- photo gallery (registration) ----------
+  // Note: the "+" tile and its <input type=file> are static in the HTML and
+  // never recreated here, so the file input's change listener (bound once,
+  // below) always stays attached. Only .photo-item cards are added/removed.
   function renderGallery(){
     const g = $("photoGallery");
-    g.innerHTML = "";
+    g.querySelectorAll(".photo-item").forEach(el=>el.remove());
+    const addTile = $("addPhotoTile");
     photos.forEach(p=>{
       const el = document.createElement("div");
       el.className = "photo-item";
       el.innerHTML = `<img src="${p.dataUrl}"><div class="name">${escapeHtml(p.name)}</div><div class="del" data-id="${p.id}">×</div>`;
-      g.appendChild(el);
+      g.insertBefore(el, addTile);
     });
-    const add = document.createElement("label");
-    add.className = "add-photo";
-    add.setAttribute("for", "photoInput");
-    add.textContent = "＋";
-    g.appendChild(add);
 
     g.querySelectorAll(".del").forEach(btn=>{
       btn.onclick = (e)=>{
