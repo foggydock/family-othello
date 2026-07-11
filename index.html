@@ -98,6 +98,20 @@
 
   .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;z-index:60;opacity:0;transition:opacity .3s;pointer-events:none;}
   .toast.show{opacity:1;}
+
+  /* history */
+  #historyList{display:flex;flex-direction:column;gap:8px;}
+  .history-empty{color:#999;font-size:13px;padding:8px 0;}
+  .history-item{display:flex;align-items:center;gap:8px;background:#faf9f6;border-radius:12px;padding:8px 10px;font-size:13px;}
+  .history-item .h-date{font-size:11px;color:#999;width:70px;flex-shrink:0;line-height:1.3;}
+  .history-item .h-side{display:flex;align-items:center;gap:5px;flex:1;min-width:0;}
+  .history-item .h-side img{width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;}
+  .history-item .h-side.p1 img{border:2px solid var(--p1-color);}
+  .history-item .h-side.p2 img{border:2px solid var(--p2-color);}
+  .history-item .h-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:64px;}
+  .history-item .h-name.winner{font-weight:700;}
+  .history-item .h-score{font-weight:700;flex-shrink:0;}
+  .history-item .h-x{color:#bbb;font-size:11px;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -142,6 +156,14 @@
   </div>
 
   <button id="startBtn" class="full" style="font-size:17px;padding:16px;">はじめる ▶</button>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between;">
+      <h2 style="margin-top:0;">📜 対戦記録</h2>
+      <button class="ghost" id="clearHistoryBtn" style="font-size:12px;padding:6px 10px;">全部消す</button>
+    </div>
+    <div id="historyList"></div>
+  </div>
 </div>
 
 <!-- ============ GAME SCREEN ============ -->
@@ -189,6 +211,7 @@
   "use strict";
   const LS_PHOTOS = "familyOthello_photos_v1";
   const LS_SETTINGS = "familyOthello_settings_v1";
+  const LS_HISTORY = "familyOthello_history_v1";
 
   const $ = id => document.getElementById(id);
 
@@ -549,7 +572,65 @@
     $("resultImg").src = imgSrc;
     $("resultScore").textContent = `${nameFor(1)} ${s1} - ${s2} ${nameFor(2)}`;
     $("resultOverlay").classList.add("active");
+
+    saveHistoryRecord(s1, s2);
   }
+
+  // ---------- history ----------
+  function loadHistory(){
+    try{ return JSON.parse(localStorage.getItem(LS_HISTORY)) || []; }catch(e){ return []; }
+  }
+  function saveHistoryRecord(s1, s2){
+    const history = loadHistory();
+    history.unshift({
+      date: Date.now(),
+      p1PhotoId, p2PhotoId,
+      p1Name: nameFor(1), p2Name: nameFor(2),
+      s1, s2,
+      winner: s1===s2 ? 0 : (s1>s2?1:2)
+    });
+    while(history.length>30) history.pop();
+    localStorage.setItem(LS_HISTORY, JSON.stringify(history));
+  }
+  function formatDate(ts){
+    const d = new Date(ts);
+    const pad = n=>String(n).padStart(2,"0");
+    return `${d.getMonth()+1}/${d.getDate()}\n${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function renderHistory(){
+    const list = $("historyList");
+    const history = loadHistory();
+    if(history.length===0){
+      list.innerHTML = `<div class="history-empty">まだ対戦記録がありません</div>`;
+      return;
+    }
+    list.innerHTML = "";
+    history.forEach(h=>{
+      const ph1 = photoById(h.p1PhotoId), ph2 = photoById(h.p2PhotoId);
+      const el = document.createElement("div");
+      el.className = "history-item";
+      el.innerHTML = `
+        <div class="h-date">${formatDate(h.date).replace("\n","<br>")}</div>
+        <div class="h-side p1">
+          <img src="${ph1?ph1.dataUrl:''}">
+          <span class="h-name${h.winner===1?' winner':''}">${escapeHtml(h.p1Name)}</span>
+        </div>
+        <div class="h-score">${h.s1}<span class="h-x">-</span>${h.s2}</div>
+        <div class="h-side p2">
+          <span class="h-name${h.winner===2?' winner':''}">${escapeHtml(h.p2Name)}</span>
+          <img src="${ph2?ph2.dataUrl:''}">
+        </div>
+        <div style="font-size:15px;">${h.winner===0?'🤝':'👑'}</div>
+      `;
+      list.appendChild(el);
+    });
+  }
+  $("clearHistoryBtn").onclick = ()=>{
+    if(confirm("対戦記録をすべて削除しますか？")){
+      localStorage.removeItem(LS_HISTORY);
+      renderHistory();
+    }
+  };
 
   $("resultCloseBtn").onclick = ()=>{
     $("resultOverlay").classList.remove("active");
@@ -566,7 +647,7 @@
     showScreen("gameScreen");
   }
 
-  $("backHomeBtn").onclick = ()=>{ showScreen("homeScreen"); };
+  $("backHomeBtn").onclick = ()=>{ renderHistory(); showScreen("homeScreen"); };
   $("restartBtn").onclick = ()=>{
     if(confirm("最初からやり直しますか？")) startGame();
   };
@@ -580,6 +661,7 @@
   loadSettings();
   renderGallery();
   renderPickers();
+  renderHistory();
   $("themeSelect").value = theme;
 })();
 </script>
