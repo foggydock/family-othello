@@ -91,7 +91,8 @@
 
   #statusMsg{text-align:center;font-size:14px;color:#777;margin:6px 0;min-height:20px;}
 
-  .bottombar{display:flex;gap:10px;margin-top:12px;}
+  .bottombar{display:flex;gap:8px;margin-top:12px;}
+  .bottombar button{font-size:13px;padding:12px 6px;}
 
   /* result overlay */
   #resultOverlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);display:none;align-items:center;justify-content:center;z-index:50;padding:20px;}
@@ -191,7 +192,7 @@
     <div id="historyList"></div>
   </div>
 
-  <div style="text-align:center;font-size:10px;color:#ccc;padding:8px 0 20px;">build 2026-07-12-a</div>
+  <div style="text-align:center;font-size:10px;color:#ccc;padding:8px 0 20px;">build 2026-07-12-b</div>
 </div>
 
 <!-- ============ GAME SCREEN ============ -->
@@ -222,6 +223,7 @@
 
   <div class="bottombar">
     <button class="ghost full" id="backHomeBtn">← 設定に戻る</button>
+    <button class="ghost full" id="undoBtn">↩️ 待った</button>
     <button class="secondary full" id="restartBtn">🔄 やり直す</button>
   </div>
 </div>
@@ -268,6 +270,7 @@
   let board = []; // 8x8, 0 empty, 1 black(p1), 2 white(p2)
   let turn = 1;
   let gameOver = false;
+  let moveHistory = []; // stack of {board, turn} snapshots for "待った" (undo)
 
   function loadPhotos(){
     try{ return JSON.parse(localStorage.getItem(LS_PHOTOS)) || []; }catch(e){ return []; }
@@ -447,6 +450,7 @@
     board[3][3]=2; board[3][4]=1; board[4][3]=1; board[4][4]=2;
     turn = 1;
     gameOver = false;
+    moveHistory = [];
   }
 
   function inBounds(r,c){ return r>=0&&r<8&&c>=0&&c<8; }
@@ -589,8 +593,14 @@
     if(mode==="cpu" && turn===2) return; // CPU turn, ignore taps
     const flips = flipsFor(board, r, c, turn);
     if(flips.length===0) return;
+    pushHistory();
     applyMove(board, r, c, turn, flips);
     afterMove();
+  }
+
+  function pushHistory(){
+    moveHistory.push({board: board.map(row=>row.slice()), turn});
+    if(moveHistory.length>200) moveHistory.shift();
   }
 
   function afterMove(){
@@ -622,9 +632,11 @@
     if(mode!=="cpu" || turn!==2) return;
     $("statusMsg").textContent = "🤖 CPUが考え中...";
     setTimeout(()=>{
+      if(gameOver || turn!==2) return; // state changed (e.g. undo) while CPU was "thinking"
       const moves = validMoves(board, 2);
       if(moves.length===0){ return; }
       const best = pickCPUMove(moves);
+      pushHistory();
       applyMove(board, best.r, best.c, 2, best.flips);
       $("statusMsg").textContent = "";
       afterMove();
@@ -749,6 +761,19 @@
   $("backHomeBtn").onclick = ()=>{ renderHistory(); showScreen("homeScreen"); };
   $("restartBtn").onclick = ()=>{
     showConfirm("最初からやり直しますか？", ()=>{ startGame(); });
+  };
+  $("undoBtn").onclick = ()=>{
+    if(moveHistory.length===0){ showToast("これ以上戻れません"); return; }
+    let entry = moveHistory.pop();
+    if(mode==="cpu" && moveHistory.length>0){
+      entry = moveHistory.pop(); // also undo CPU's reply so it's the human's turn again
+    }
+    board = entry.board;
+    turn = entry.turn;
+    gameOver = false;
+    $("resultOverlay").classList.remove("active");
+    $("statusMsg").textContent = "";
+    renderBoard();
   };
 
   function showScreen(id){
