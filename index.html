@@ -66,9 +66,6 @@
 
   #leadMsg{text-align:center;font-size:13px;color:#8a7a5c;font-weight:600;margin-bottom:8px;min-height:18px;}
 
-  #rotateWrap{transition:transform .5s ease;}
-  #rotateWrap.flipped{transform:rotate(180deg);}
-
   .turn-banner{text-align:center;font-weight:700;font-size:15px;padding:9px;border-radius:12px;margin-bottom:8px;color:#fff;min-height:16px;}
   .turn-banner.p1{background:var(--p1-color);}
   .turn-banner.p2{background:var(--p2-color);}
@@ -80,7 +77,8 @@
   .cell .piece.show{transform:scale(1);}
   .cell .piece.p1{border:3px solid var(--p1-color);}
   .cell .piece.p2{border:3px solid var(--p2-color);}
-  .cell .piece img{width:100%;height:100%;object-fit:cover;display:block;}
+  .cell .piece img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .4s ease;}
+  .cell .piece img.face-flip{transform:rotate(180deg);}
   .cell.hint::after{content:"";position:absolute;width:22%;height:22%;border-radius:50%;background:rgba(255,255,255,0.55);}
 
   /* themes */
@@ -193,7 +191,7 @@
     <div id="historyList"></div>
   </div>
 
-  <div style="text-align:center;font-size:10px;color:#ccc;padding:8px 0 20px;">build 2026-07-11-e</div>
+  <div style="text-align:center;font-size:10px;color:#ccc;padding:8px 0 20px;">build 2026-07-12-a</div>
 </div>
 
 <!-- ============ GAME SCREEN ============ -->
@@ -533,6 +531,7 @@
           piece.classList.add("show");
           piece.classList.toggle("p1", val===1);
           piece.classList.toggle("p2", val===2);
+          img.classList.toggle("face-flip", mode==="human" && turn===2 && !gameOver);
         }
       }
     }
@@ -563,26 +562,18 @@
       leadEl.textContent = `👑 ${leaderName} が ${diff} 個リード中`;
     }
 
-    updateTurnBannerAndRotation();
+    updateTurnBanner();
   }
 
-  function updateTurnBannerAndRotation(){
+  function updateTurnBanner(){
     const banner = $("turnBanner");
-    const wrap = $("rotateWrap");
     if(gameOver){
       banner.textContent = "";
       banner.className = "turn-banner";
-      wrap.classList.remove("flipped");
       return;
     }
     banner.textContent = `▶ ${nameFor(turn)}の番です`;
     banner.className = "turn-banner " + (turn===1 ? "p1" : "p2");
-
-    if(mode==="human"){
-      wrap.classList.toggle("flipped", turn===2);
-    } else {
-      wrap.classList.remove("flipped");
-    }
   }
 
   function setupPlayerBadges(){
