@@ -125,6 +125,30 @@
   .history-item .h-name.winner{font-weight:700;}
   .history-item .h-score{font-weight:700;flex-shrink:0;}
   .history-item .h-x{color:#bbb;font-size:11px;flex-shrink:0;}
+
+  /* ranking */
+  #rankingList{display:flex;flex-direction:column;gap:10px;}
+  .rank-empty{color:#999;font-size:13px;padding:8px 0;}
+  .rank-item{display:flex;align-items:center;gap:12px;background:#faf9f6;border-radius:14px;padding:10px 12px;}
+  .rank-item .r-num{font-size:20px;font-weight:800;width:34px;text-align:center;flex-shrink:0;color:#999;}
+  .rank-item.top1{background:linear-gradient(135deg,#fff6d9,#ffe9a8);}
+  .rank-item.top2{background:linear-gradient(135deg,#f3f3f3,#e2e2e2);}
+  .rank-item.top3{background:linear-gradient(135deg,#ffe9d9,#f0c9a0);}
+  .rank-item.top1 .r-num{color:#c9960c;}
+  .rank-item.top2 .r-num{color:#888;}
+  .rank-item.top3 .r-num{color:#b3702f;}
+  .rank-item img{width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.15);}
+  .rank-item .r-info{flex:1;min-width:0;}
+  .rank-item .r-name{font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .rank-item .r-detail{font-size:12px;color:#888;}
+  .rank-item .r-wins{font-size:18px;font-weight:800;color:var(--accent);flex-shrink:0;}
+
+  /* result overlay board-peek */
+  #resultOverlay.peek{background:rgba(0,0,0,0);pointer-events:none;}
+  #resultOverlay.peek .result-card{display:none;}
+  #peekBtn{margin-top:10px;}
+  #reopenResultBtn{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:55;display:none;box-shadow:0 4px 14px rgba(0,0,0,0.25);}
+  #reopenResultBtn.show{display:block;}
 </style>
 </head>
 <body>
@@ -159,7 +183,7 @@
   </div>
 
   <div class="card" id="p2Card">
-    <h2 style="margin-top:0;">プレイヤー2（白担当）の写真</h2>
+    <h2 style="margin-top:0;" id="p2CardTitle">プレイヤー2（白担当）の写真</h2>
     <div id="p2Gallery" class="photo-grid"></div>
   </div>
 
@@ -192,7 +216,18 @@
     <div id="historyList"></div>
   </div>
 
-  <div style="text-align:center;font-size:10px;color:#ccc;padding:8px 0 20px;">build 2026-07-12-b</div>
+  <button id="showRankingBtn" class="full secondary" style="margin-bottom:14px;">🏆 ランキングを見る</button>
+
+  <div style="text-align:center;font-size:10px;color:#ccc;padding:8px 0 20px;">build 2026-07-19-a</div>
+</div>
+
+<!-- ============ RANKING SCREEN ============ -->
+<div id="rankingScreen" class="screen">
+  <h1>🏆 ランキング</h1>
+  <div class="card">
+    <div id="rankingList"></div>
+  </div>
+  <button class="ghost full" id="rankingBackBtn">← もどる</button>
 </div>
 
 <!-- ============ GAME SCREEN ============ -->
@@ -234,9 +269,12 @@
     <h2 id="resultTitle"></h2>
     <img id="resultImg" src="">
     <div class="result-score" id="resultScore"></div>
+    <button class="ghost full" id="peekBtn">🔍 盤面を見る</button>
     <button id="resultCloseBtn" class="full">もう一度</button>
   </div>
 </div>
+
+<button id="reopenResultBtn" class="full">🏆 結果に戻る</button>
 
 <div class="toast" id="toast"></div>
 
@@ -404,8 +442,8 @@
   function renderPickers(){
     renderPicker($("p1Gallery"), p1PhotoId, (id)=>{ p1PhotoId=id; saveSettings(); renderPickers(); });
     renderPicker($("p2Gallery"), p2PhotoId, (id)=>{ p2PhotoId=id; saveSettings(); renderPickers(); });
-    $("p2Card").style.display = mode==="cpu" ? "none" : "block";
-    $("modeCheck").textContent = mode==="cpu" ? "🤖 プレイヤー2はCPUが担当します" : "";
+    $("p2CardTitle").textContent = mode==="cpu" ? "🤖 CPU（白担当）の見た目" : "プレイヤー2（白担当）の写真";
+    $("modeCheck").textContent = mode==="cpu" ? "🤖 CPUの見た目を下から選んでください" : "";
   }
   function renderPicker(container, selectedId, onPick){
     container.innerHTML = "";
@@ -682,6 +720,8 @@
     $("resultTitle").textContent = title;
     $("resultImg").src = imgSrc;
     $("resultScore").textContent = `${nameFor(1)} ${s1} - ${s2} ${nameFor(2)}`;
+    $("resultOverlay").classList.remove("peek");
+    $("reopenResultBtn").classList.remove("show");
     $("resultOverlay").classList.add("active");
 
     saveHistoryRecord(s1, s2);
@@ -743,8 +783,73 @@
     });
   };
 
+  // ---------- ranking ----------
+  function computeRanking(){
+    const history = loadHistory();
+    const stats = {};
+    function ensure(id){ if(id && !stats[id]) stats[id] = {id, wins:0, losses:0, draws:0, games:0}; }
+    history.forEach(h=>{
+      ensure(h.p1PhotoId); ensure(h.p2PhotoId);
+      if(h.p1PhotoId){
+        stats[h.p1PhotoId].games++;
+        if(h.winner===1) stats[h.p1PhotoId].wins++;
+        else if(h.winner===2) stats[h.p1PhotoId].losses++;
+        else stats[h.p1PhotoId].draws++;
+      }
+      if(h.p2PhotoId){
+        stats[h.p2PhotoId].games++;
+        if(h.winner===2) stats[h.p2PhotoId].wins++;
+        else if(h.winner===1) stats[h.p2PhotoId].losses++;
+        else stats[h.p2PhotoId].draws++;
+      }
+    });
+    const arr = Object.values(stats);
+    arr.sort((a,b)=> b.wins-a.wins || b.games-a.games);
+    return arr;
+  }
+
+  function renderRanking(){
+    const list = $("rankingList");
+    const ranking = computeRanking();
+    if(ranking.length===0){
+      list.innerHTML = `<div class="rank-empty">まだ対戦記録がありません</div>`;
+      return;
+    }
+    const medals = ["🥇","🥈","🥉"];
+    list.innerHTML = "";
+    ranking.forEach((r,i)=>{
+      const ph = photoById(r.id);
+      const el = document.createElement("div");
+      el.className = "rank-item" + (i<3 ? " top"+(i+1) : "");
+      el.innerHTML = `
+        <div class="r-num">${medals[i] || (i+1)}</div>
+        <img src="${ph?ph.dataUrl:''}">
+        <div class="r-info">
+          <div class="r-name">${escapeHtml(ph?ph.name:'？')}</div>
+          <div class="r-detail">${r.games}試合 ${r.wins}勝${r.losses}敗${r.draws?r.draws+'分':''}</div>
+        </div>
+        <div class="r-wins">${r.wins}<span style="font-size:11px;color:#aaa;">勝</span></div>
+      `;
+      list.appendChild(el);
+    });
+  }
+
+  $("showRankingBtn").onclick = ()=>{ renderRanking(); showScreen("rankingScreen"); };
+  $("rankingBackBtn").onclick = ()=>{ showScreen("homeScreen"); };
+
+  $("peekBtn").onclick = ()=>{
+    $("resultOverlay").classList.add("peek");
+    $("reopenResultBtn").classList.add("show");
+  };
+  $("reopenResultBtn").onclick = ()=>{
+    $("resultOverlay").classList.remove("peek");
+    $("reopenResultBtn").classList.remove("show");
+  };
+
   $("resultCloseBtn").onclick = ()=>{
     $("resultOverlay").classList.remove("active");
+    $("resultOverlay").classList.remove("peek");
+    $("reopenResultBtn").classList.remove("show");
     startGame();
   };
 
@@ -772,6 +877,8 @@
     turn = entry.turn;
     gameOver = false;
     $("resultOverlay").classList.remove("active");
+    $("resultOverlay").classList.remove("peek");
+    $("reopenResultBtn").classList.remove("show");
     $("statusMsg").textContent = "";
     renderBoard();
   };
