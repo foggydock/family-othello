@@ -97,7 +97,13 @@
   .theme-ocean .board-wrap{background:linear-gradient(160deg,#4fb0c9,#1e6f8c);}
   .theme-ocean .cell{background:linear-gradient(160deg,#3f9fba,#1c6982);}
 
-  #statusMsg{text-align:center;font-size:14px;color:#777;margin:6px 0;min-height:20px;}
+  #statusMsg{text-align:center;font-size:14px;color:#777;margin:6px 0;min-height:20px;transition:background .2s,color .2s,border-radius .2s,padding .2s;}
+  #statusMsg.pass-alert{color:#fff;background:var(--accent);border-radius:10px;padding:8px 6px;font-weight:700;font-size:15px;animation:passPop .35s ease;}
+  @keyframes passPop{
+    0%{transform:scale(0.9);opacity:0;}
+    60%{transform:scale(1.04);opacity:1;}
+    100%{transform:scale(1);}
+  }
 
   .bottombar{display:flex;gap:8px;margin-top:12px;}
   .bottombar button{font-size:13px;padding:12px 6px;}
@@ -667,7 +673,14 @@
         endGame();
         return;
       } else {
-        showToast((next===1?nameFor(1):nameFor(2)) + "は打てる場所がないためパス");
+        const passMsg = "⏭️ " + (next===1?nameFor(1):nameFor(2)) + "はパス！";
+        const statusEl = $("statusMsg");
+        statusEl.textContent = passMsg;
+        statusEl.classList.add("pass-alert");
+        setTimeout(()=>{
+          statusEl.classList.remove("pass-alert");
+          if(statusEl.textContent===passMsg) statusEl.textContent = "";
+        }, 1800);
       }
     }
     renderBoard();
