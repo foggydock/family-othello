@@ -131,6 +131,7 @@
   .history-item .h-side.p2 img{border:2px solid var(--p2-color);}
   .history-item .h-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:64px;}
   .history-item .h-name.winner{font-weight:700;}
+  .history-item .h-crown{font-size:12px;flex-shrink:0;}
   .history-item .h-score{font-weight:700;flex-shrink:0;}
   .history-item .h-x{color:#bbb;font-size:11px;flex-shrink:0;}
 
@@ -778,14 +779,16 @@
         <div class="h-date">${formatDate(h.date).replace("\n","<br>")}</div>
         <div class="h-side p1">
           <img src="${ph1?ph1.dataUrl:''}">
+          ${h.winner===1?'<span class="h-crown">👑</span>':''}
           <span class="h-name${h.winner===1?' winner':''}">${escapeHtml(h.p1Name)}</span>
         </div>
         <div class="h-score">${h.s1}<span class="h-x">-</span>${h.s2}</div>
         <div class="h-side p2">
           <span class="h-name${h.winner===2?' winner':''}">${escapeHtml(h.p2Name)}</span>
+          ${h.winner===2?'<span class="h-crown">👑</span>':''}
           <img src="${ph2?ph2.dataUrl:''}">
         </div>
-        <div style="font-size:15px;">${h.winner===0?'🤝':'👑'}</div>
+        ${h.winner===0?'<div style="font-size:15px;">🤝</div>':''}
       `;
       list.appendChild(el);
     });
