@@ -190,6 +190,30 @@
   #peekBtn{margin-top:10px;}
   #reopenResultBtn{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:55;display:none;box-shadow:0 4px 14px rgba(0,0,0,0.25);}
   #reopenResultBtn.show{display:block;}
+
+  /* tablet / iPad layout: the phone-style single narrow column wastes most
+     of the screen on a larger device, so widen the frame and let the game
+     screen's board grow with it. Home screen settings flow into two columns
+     via CSS multi-column (no HTML restructuring needed) so there's less
+     scrolling and the page reads as a real app, not a stretched phone view. */
+  @media (min-width: 700px){
+    .screen{max-width:760px;}
+    #gameScreen.screen{max-width:640px;}
+    h1{font-size:26px;}
+    .photo-grid{grid-template-columns:repeat(6,1fr);}
+    #homeScreen{column-count:2;column-gap:20px;}
+    #homeScreen h1,
+    #homeScreen > #startBtn,
+    #homeScreen > #showRankingBtn,
+    #homeScreen > div[style*="text-align:center"]{
+      column-span:all;
+    }
+    #homeScreen .card{break-inside:avoid;-webkit-column-break-inside:avoid;}
+  }
+  @media (min-width: 1000px){
+    .screen{max-width:900px;}
+    #gameScreen.screen{max-width:700px;}
+  }
 </style>
 </head>
 <body>
@@ -282,7 +306,7 @@
     <div id="backupCheck" style="text-align:center;margin-top:8px;font-size:13px;color:#888;"></div>
   </div>
 
-  <div style="text-align:center;font-size:10px;color:#ccc;padding:8px 0 20px;">build 2026-08-08-c</div>
+  <div style="text-align:center;font-size:10px;color:#ccc;padding:8px 0 20px;">build 2026-08-08-d</div>
 </div>
 
 <!-- ============ RANKING SCREEN ============ -->
