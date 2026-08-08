@@ -60,6 +60,8 @@
   .player-badge.p1 img{border:3px solid var(--p1-color);}
   .player-badge.p2 img{border:3px solid var(--p2-color);}
   .player-badge img{width:34px;height:34px;border-radius:50%;object-fit:cover;box-sizing:border-box;}
+  .avatar-wrap{position:relative;display:inline-flex;flex-shrink:0;}
+  .cpu-badge{position:absolute;bottom:-3px;right:-3px;font-size:12px;background:#fff;border-radius:50%;line-height:1;padding:1px;box-shadow:0 1px 3px rgba(0,0,0,0.3);}
   .player-badge .score{font-size:18px;font-weight:700;}
   .player-badge .pname{font-size:11px;color:#888;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .player-badge .crown{font-size:13px;margin-left:2px;}
@@ -112,7 +114,9 @@
   #resultOverlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);display:none;align-items:center;justify-content:center;z-index:50;padding:20px;}
   #resultOverlay.active{display:flex;}
   .result-card{background:#fff;border-radius:20px;padding:28px 20px;text-align:center;max-width:320px;width:100%;}
-  .result-card img{width:100px;height:100px;border-radius:50%;object-fit:cover;margin:10px auto;display:block;border:4px solid var(--accent);}
+  .result-card img{width:100px;height:100px;border-radius:50%;object-fit:cover;display:block;border:4px solid var(--accent);}
+  .result-card .avatar-wrap{margin:10px auto;}
+  .result-card .cpu-badge{font-size:22px;}
   .result-card h2{margin-top:0;font-size:20px;}
   .result-score{font-size:15px;color:#666;margin-bottom:16px;}
 
@@ -142,6 +146,7 @@
   .history-item .h-x{color:#bbb;font-size:11px;flex-shrink:0;}
   .history-item.clickable{cursor:pointer;}
   .history-item.clickable:active{filter:brightness(0.96);}
+  .history-item .cpu-badge{font-size:9px;bottom:-2px;right:-2px;}
 
   /* history board viewer overlay */
   #historyBoardOverlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;z-index:65;padding:20px;}
@@ -173,6 +178,8 @@
   .rank-item .r-name{font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .rank-item .r-detail{font-size:12px;color:#888;}
   .rank-item .r-wins{font-size:18px;font-weight:800;color:var(--accent);flex-shrink:0;}
+  .rank-item .cpu-badge{font-size:14px;}
+  .rank-item .cpu-avatar{width:44px;height:44px;border-radius:50%;flex-shrink:0;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.15);background:#556;display:flex;align-items:center;justify-content:center;font-size:22px;}
 
   /* result overlay board-peek */
   #resultOverlay.peek{background:rgba(0,0,0,0);pointer-events:none;}
@@ -206,6 +213,16 @@
       <button id="modeCPU" class="full secondary">🤖 人間 vs CPU</button>
     </div>
     <div id="modeCheck" style="text-align:center;margin-top:8px;font-size:13px;color:#888;"></div>
+  </div>
+
+  <div class="card" id="cpuLevelCard" style="display:none;">
+    <h2 style="margin-top:0;">🤖 コンピューターの強さ</h2>
+    <div class="row">
+      <button id="cpuEasyBtn" class="full">🌱 初級</button>
+      <button id="cpuNormalBtn" class="full secondary">⚙️ 中級</button>
+      <button id="cpuHardBtn" class="full">🔥 上級</button>
+    </div>
+    <div id="cpuLevelCheck" style="text-align:center;margin-top:8px;font-size:13px;color:#888;"></div>
   </div>
 
   <div class="card">
@@ -249,7 +266,7 @@
 
   <button id="showRankingBtn" class="full secondary" style="margin-bottom:14px;">🏆 ランキングを見る</button>
 
-  <div style="text-align:center;font-size:10px;color:#ccc;padding:8px 0 20px;">build 2026-08-08-a</div>
+  <div style="text-align:center;font-size:10px;color:#ccc;padding:8px 0 20px;">build 2026-08-08-b</div>
 </div>
 
 <!-- ============ RANKING SCREEN ============ -->
@@ -273,7 +290,7 @@
       </div>
       <div style="font-size:12px;color:#999;">VS</div>
       <div class="player-badge p2" id="badgeP2">
-        <img id="imgP2" src="">
+        <span class="avatar-wrap"><img id="imgP2" src=""><span class="cpu-badge" id="cpuBadgeP2" style="display:none;">🤖</span></span>
         <div><div class="score" id="scoreP2">2<span class="crown" id="crownP2"></span></div><div class="pname" id="nameP2"></div></div>
       </div>
     </div>
@@ -298,7 +315,7 @@
   <div class="result-card">
     <div id="resultEmoji" style="font-size:40px;">🎉</div>
     <h2 id="resultTitle"></h2>
-    <img id="resultImg" src="">
+    <span class="avatar-wrap"><img id="resultImg" src=""><span class="cpu-badge" id="cpuBadgeResult" style="display:none;font-size:22px;">🤖</span></span>
     <div class="result-score" id="resultScore"></div>
     <button class="ghost full" id="peekBtn">🔍 盤面を見る</button>
     <button id="resultCloseBtn" class="full">もう一度</button>
@@ -346,6 +363,7 @@
   let p1PhotoId = null, p2PhotoId = null;
   let theme = "park";
   let hintsEnabled = true;
+  let cpuLevel = "normal"; // easy | normal | hard
 
   let board = []; // 8x8, 0 empty, 1 black(p1), 2 white(p2)
   let turn = 1;
@@ -365,11 +383,12 @@
         p2PhotoId = s.p2PhotoId || null;
         theme = s.theme || "park";
         hintsEnabled = s.hintsEnabled !== undefined ? s.hintsEnabled : true;
+        cpuLevel = s.cpuLevel || "normal";
       }
     }catch(e){}
   }
   function saveSettings(){
-    localStorage.setItem(LS_SETTINGS, JSON.stringify({mode,p1PhotoId,p2PhotoId,theme,hintsEnabled}));
+    localStorage.setItem(LS_SETTINGS, JSON.stringify({mode,p1PhotoId,p2PhotoId,theme,hintsEnabled,cpuLevel}));
   }
 
   // ---------- generic modal (replaces native prompt/confirm) ----------
@@ -486,6 +505,7 @@
     renderPicker($("p2Gallery"), p2PhotoId, (id)=>{ p2PhotoId=id; saveSettings(); renderPickers(); });
     $("p2CardTitle").textContent = mode==="cpu" ? "🤖 CPU（白担当）の見た目" : "プレイヤー2（白担当）の写真";
     $("modeCheck").textContent = mode==="cpu" ? "🤖 CPUの見た目を下から選んでください" : "";
+    $("cpuLevelCard").style.display = mode==="cpu" ? "" : "none";
   }
   function renderPicker(container, selectedId, onPick){
     container.innerHTML = "";
@@ -505,6 +525,14 @@
   $("modeHuman").onclick = ()=>{ mode="human"; saveSettings(); renderPickers(); };
   $("modeCPU").onclick = ()=>{ mode="cpu"; saveSettings(); renderPickers(); };
   $("themeSelect").onchange = (e)=>{ theme=e.target.value; saveSettings(); };
+
+  function renderCpuLevelCheck(){
+    const labels = {easy:"🌱 現在: 初級", normal:"⚙️ 現在: 中級", hard:"🔥 現在: 上級"};
+    $("cpuLevelCheck").textContent = labels[cpuLevel];
+  }
+  $("cpuEasyBtn").onclick = ()=>{ cpuLevel="easy"; saveSettings(); renderCpuLevelCheck(); };
+  $("cpuNormalBtn").onclick = ()=>{ cpuLevel="normal"; saveSettings(); renderCpuLevelCheck(); };
+  $("cpuHardBtn").onclick = ()=>{ cpuLevel="hard"; saveSettings(); renderCpuLevelCheck(); };
 
   function renderHintsCheck(){
     $("hintsCheck").textContent = hintsEnabled ? "👀 現在: ヒントあり" : "🙈 現在: ヒントなし（自分で考えよう）";
@@ -666,6 +694,7 @@
     $("imgP2").src = p2 ? p2.dataUrl : "";
     $("nameP1").textContent = p1 ? p1.name : "P1";
     $("nameP2").textContent = mode==="cpu" ? "CPU" : (p2 ? p2.name : "P2");
+    $("cpuBadgeP2").style.display = mode==="cpu" ? "" : "none";
   }
 
   function onCellClick(r,c){
@@ -728,7 +757,7 @@
       if(gameOver || turn!==2) return; // state changed (e.g. undo) while CPU was "thinking"
       const moves = validMoves(board, 2);
       if(moves.length===0){ return; }
-      const best = pickCPUMove(moves);
+      const best = pickCPUMove(moves, cpuLevel);
       pushHistory();
       applyMove(board, best.r, best.c, 2, best.flips);
       $("statusMsg").textContent = "";
@@ -747,7 +776,7 @@
     [100,-20,10,5,5,10,-20,100]
   ];
 
-  function pickCPUMove(moves){
+  function pickCPUMoveGreedy(moves){
     let best = null, bestScore = -Infinity;
     for(const m of moves){
       let score = WEIGHT[m.r][m.c] + m.flips.length*1.5;
@@ -756,11 +785,75 @@
     return best;
   }
 
+  function evaluateBoard(b, cpuPlayer){
+    const opp = cpuPlayer===1?2:1;
+    let score = 0;
+    for(let r=0;r<8;r++) for(let c=0;c<8;c++){
+      if(b[r][c]===cpuPlayer) score += WEIGHT[r][c];
+      else if(b[r][c]===opp) score -= WEIGHT[r][c];
+    }
+    return score;
+  }
+
+  // minimax with alpha-beta pruning; scores are always from cpuPlayer's perspective
+  function minimax(b, player, depth, alpha, beta, cpuPlayer){
+    const moves = validMoves(b, player);
+    if(depth<=0){
+      return evaluateBoard(b, cpuPlayer);
+    }
+    const nextPlayer = player===1?2:1;
+    if(moves.length===0){
+      if(validMoves(b, nextPlayer).length===0){
+        const {s1,s2} = countScore(b);
+        const diff = cpuPlayer===1 ? s1-s2 : s2-s1;
+        return diff*1000; // game over: outcome dominates positional score
+      }
+      return minimax(b, nextPlayer, depth-1, alpha, beta, cpuPlayer); // pass
+    }
+    const maximizing = player===cpuPlayer;
+    let value = maximizing ? -Infinity : Infinity;
+    for(const m of moves){
+      const nb = b.map(row=>row.slice());
+      applyMove(nb, m.r, m.c, player, m.flips);
+      const s = minimax(nb, nextPlayer, depth-1, alpha, beta, cpuPlayer);
+      if(maximizing){
+        value = Math.max(value, s);
+        alpha = Math.max(alpha, value);
+      } else {
+        value = Math.min(value, s);
+        beta = Math.min(beta, value);
+      }
+      if(alpha>=beta) break;
+    }
+    return value;
+  }
+
+  function pickCPUMoveHard(moves, cpuPlayer){
+    let best = null, bestScore = -Infinity;
+    for(const m of moves){
+      const nb = board.map(row=>row.slice());
+      applyMove(nb, m.r, m.c, cpuPlayer, m.flips);
+      const score = minimax(nb, cpuPlayer===1?2:1, 3, -Infinity, Infinity, cpuPlayer);
+      if(score>bestScore){ bestScore=score; best=m; }
+    }
+    return best;
+  }
+
+  function pickCPUMove(moves, level){
+    if(level==="easy"){
+      return moves[Math.floor(Math.random()*moves.length)];
+    }
+    if(level==="hard"){
+      return pickCPUMoveHard(moves, 2);
+    }
+    return pickCPUMoveGreedy(moves);
+  }
+
   function endGame(){
     gameOver = true;
     renderBoard();
     const {s1,s2} = countScore(board);
-    let title, imgSrc, emoji;
+    let title, imgSrc, emoji, winnerIsCPU = false;
     if(s1===s2){
       title = "ひきわけ！";
       emoji = "🤝";
@@ -770,10 +863,12 @@
       title = nameFor(winner) + " のかち！";
       emoji = "🎉";
       imgSrc = photoById(winner===1?p1PhotoId:p2PhotoId)?.dataUrl || "";
+      winnerIsCPU = mode==="cpu" && winner===2;
     }
     $("resultEmoji").textContent = emoji;
     $("resultTitle").textContent = title;
     $("resultImg").src = imgSrc;
+    $("cpuBadgeResult").style.display = winnerIsCPU ? "" : "none";
     $("resultScore").textContent = `${nameFor(1)} ${s1} - ${s2} ${nameFor(2)}`;
     $("resultOverlay").classList.remove("peek");
     $("reopenResultBtn").classList.remove("show");
@@ -795,7 +890,9 @@
       s1, s2,
       winner: s1===s2 ? 0 : (s1>s2?1:2),
       finalBoard: board.map(row=>row.slice()),
-      theme
+      theme,
+      p2IsCPU: mode==="cpu",
+      cpuLevel: mode==="cpu" ? cpuLevel : undefined
     });
     while(history.length>30) history.pop();
     localStorage.setItem(LS_HISTORY, JSON.stringify(history));
@@ -824,7 +921,7 @@
       const side2 = `
         <div class="h-side p2">
           ${h.winner===2?'<span class="h-crown">👑</span>':''}
-          <img src="${ph2?ph2.dataUrl:''}">
+          <span class="avatar-wrap"><img src="${ph2?ph2.dataUrl:''}">${h.p2IsCPU?'<span class="cpu-badge">🤖</span>':''}</span>
           <span class="h-name${h.winner===2?' winner':''}">${escapeHtml(h.p2Name)}</span>
         </div>`;
       // winner is always shown on the left so it's clear at a glance
@@ -884,18 +981,23 @@
     const stats = {};
     function ensure(id){ if(id && !stats[id]) stats[id] = {id, wins:0, losses:0, draws:0, games:0}; }
     history.forEach(h=>{
-      ensure(h.p1PhotoId); ensure(h.p2PhotoId);
+      // CPU games use a human family member's photo purely for looks, so its
+      // wins/losses must not be attributed to that person's own stats — key
+      // them under a dedicated "cpu" entry instead of h.p2PhotoId.
+      const isCPU = h.p2IsCPU || h.p2Name==="CPU";
+      const p2Key = isCPU ? "cpu" : h.p2PhotoId;
+      ensure(h.p1PhotoId); ensure(p2Key);
       if(h.p1PhotoId){
         stats[h.p1PhotoId].games++;
         if(h.winner===1) stats[h.p1PhotoId].wins++;
         else if(h.winner===2) stats[h.p1PhotoId].losses++;
         else stats[h.p1PhotoId].draws++;
       }
-      if(h.p2PhotoId){
-        stats[h.p2PhotoId].games++;
-        if(h.winner===2) stats[h.p2PhotoId].wins++;
-        else if(h.winner===1) stats[h.p2PhotoId].losses++;
-        else stats[h.p2PhotoId].draws++;
+      if(p2Key){
+        stats[p2Key].games++;
+        if(h.winner===2) stats[p2Key].wins++;
+        else if(h.winner===1) stats[p2Key].losses++;
+        else stats[p2Key].draws++;
       }
     });
     const arr = Object.values(stats);
@@ -913,14 +1015,18 @@
     const medals = ["🥇","🥈","🥉"];
     list.innerHTML = "";
     ranking.forEach((r,i)=>{
-      const ph = photoById(r.id);
+      const isCPU = r.id==="cpu";
+      const ph = isCPU ? null : photoById(r.id);
+      const avatar = isCPU
+        ? `<div class="cpu-avatar">🤖</div>`
+        : `<img src="${ph?ph.dataUrl:''}">`;
       const el = document.createElement("div");
       el.className = "rank-item" + (i<3 ? " top"+(i+1) : "");
       el.innerHTML = `
         <div class="r-num">${medals[i] || (i+1)}</div>
-        <img src="${ph?ph.dataUrl:''}">
+        ${avatar}
         <div class="r-info">
-          <div class="r-name">${escapeHtml(ph?ph.name:'？')}</div>
+          <div class="r-name">${isCPU ? "🤖 CPU" : escapeHtml(ph?ph.name:'？')}</div>
           <div class="r-detail">${r.games}試合 ${r.wins}勝${r.losses}敗${r.draws?r.draws+'分':''}</div>
         </div>
         <div class="r-wins">${r.wins}<span style="font-size:11px;color:#aaa;">勝</span></div>
@@ -989,6 +1095,7 @@
   renderPickers();
   renderHistory();
   renderHintsCheck();
+  renderCpuLevelCheck();
   $("themeSelect").value = theme;
 })();
 </script>
