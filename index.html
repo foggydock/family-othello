@@ -90,12 +90,12 @@
   .cell.hint::after{content:"";position:absolute;width:22%;height:22%;border-radius:50%;background:rgba(255,255,255,0.55);}
 
   /* themes */
-  .theme-park .board-wrap{background:linear-gradient(160deg,#8bbf6f,#5f9a4f);}
-  .theme-park .cell{background:linear-gradient(160deg,#79b25e,#4f8a41);}
-  .theme-space .board-wrap{background:linear-gradient(160deg,#241b4e,#0d0a24);}
-  .theme-space .cell{background:linear-gradient(160deg,#372a6e,#1a1440);}
-  .theme-ocean .board-wrap{background:linear-gradient(160deg,#4fb0c9,#1e6f8c);}
-  .theme-ocean .cell{background:linear-gradient(160deg,#3f9fba,#1c6982);}
+  .theme-park .board-wrap, .board-wrap.theme-park{background:linear-gradient(160deg,#8bbf6f,#5f9a4f);}
+  .theme-park .cell, .theme-park#historyBoard .cell{background:linear-gradient(160deg,#79b25e,#4f8a41);}
+  .theme-space .board-wrap, .board-wrap.theme-space{background:linear-gradient(160deg,#241b4e,#0d0a24);}
+  .theme-space .cell, .theme-space#historyBoard .cell{background:linear-gradient(160deg,#372a6e,#1a1440);}
+  .theme-ocean .board-wrap, .board-wrap.theme-ocean{background:linear-gradient(160deg,#4fb0c9,#1e6f8c);}
+  .theme-ocean .cell, .theme-ocean#historyBoard .cell{background:linear-gradient(160deg,#3f9fba,#1c6982);}
 
   #statusMsg{text-align:center;font-size:14px;color:#777;margin:6px 0;min-height:20px;transition:background .2s,color .2s,border-radius .2s,padding .2s;}
   #statusMsg.pass-alert{color:#fff;background:var(--accent);border-radius:10px;padding:8px 6px;font-weight:700;font-size:15px;animation:passPop .35s ease;}
@@ -140,6 +140,22 @@
   .history-item .h-crown{font-size:12px;flex-shrink:0;}
   .history-item .h-score{font-weight:700;flex-shrink:0;}
   .history-item .h-x{color:#bbb;font-size:11px;flex-shrink:0;}
+  .history-item.clickable{cursor:pointer;}
+  .history-item.clickable:active{filter:brightness(0.96);}
+
+  /* history board viewer overlay */
+  #historyBoardOverlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;z-index:65;padding:20px;}
+  #historyBoardOverlay.active{display:flex;}
+  .history-board-card{background:#fff;border-radius:20px;padding:18px;max-width:360px;width:100%;text-align:center;}
+  .history-board-card h2{margin:0 0 4px;font-size:17px;}
+  .history-board-score{font-size:13px;color:#666;margin-bottom:12px;}
+  #historyBoardWrap{border-radius:14px;padding:6px;margin-bottom:14px;}
+  #historyBoard{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);gap:1px;background:rgba(0,0,0,0.22);aspect-ratio:1;width:100%;border-radius:6px;overflow:hidden;}
+  #historyBoard .cell{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;}
+  #historyBoard .piece{width:82%;height:82%;border-radius:50%;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,0.35);background:#fff;box-sizing:border-box;}
+  #historyBoard .piece.p1{border:3px solid var(--p1-color);}
+  #historyBoard .piece.p2{border:3px solid var(--p2-color);}
+  #historyBoard .piece img{width:100%;height:100%;object-fit:cover;display:block;}
 
   /* ranking */
   #rankingList{display:flex;flex-direction:column;gap:10px;}
@@ -233,7 +249,7 @@
 
   <button id="showRankingBtn" class="full secondary" style="margin-bottom:14px;">🏆 ランキングを見る</button>
 
-  <div style="text-align:center;font-size:10px;color:#ccc;padding:8px 0 20px;">build 2026-07-19-a</div>
+  <div style="text-align:center;font-size:10px;color:#ccc;padding:8px 0 20px;">build 2026-08-08-a</div>
 </div>
 
 <!-- ============ RANKING SCREEN ============ -->
@@ -290,6 +306,17 @@
 </div>
 
 <button id="reopenResultBtn" class="full">🏆 結果に戻る</button>
+
+<div id="historyBoardOverlay">
+  <div class="history-board-card">
+    <h2 id="historyBoardTitle"></h2>
+    <div class="history-board-score" id="historyBoardScore"></div>
+    <div id="historyBoardWrap" class="board-wrap">
+      <div id="historyBoard"></div>
+    </div>
+    <button class="ghost full" id="historyBoardCloseBtn">とじる</button>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -766,7 +793,9 @@
       p1PhotoId, p2PhotoId,
       p1Name: nameFor(1), p2Name: nameFor(2),
       s1, s2,
-      winner: s1===s2 ? 0 : (s1>s2?1:2)
+      winner: s1===s2 ? 0 : (s1>s2?1:2),
+      finalBoard: board.map(row=>row.slice()),
+      theme
     });
     while(history.length>30) history.pop();
     localStorage.setItem(LS_HISTORY, JSON.stringify(history));
@@ -784,28 +813,64 @@
       return;
     }
     list.innerHTML = "";
-    history.forEach(h=>{
+    history.forEach((h,idx)=>{
       const ph1 = photoById(h.p1PhotoId), ph2 = photoById(h.p2PhotoId);
-      const el = document.createElement("div");
-      el.className = "history-item";
-      el.innerHTML = `
-        <div class="h-date">${formatDate(h.date).replace("\n","<br>")}</div>
+      const side1 = `
         <div class="h-side p1">
-          <img src="${ph1?ph1.dataUrl:''}">
           ${h.winner===1?'<span class="h-crown">👑</span>':''}
+          <img src="${ph1?ph1.dataUrl:''}">
           <span class="h-name${h.winner===1?' winner':''}">${escapeHtml(h.p1Name)}</span>
-        </div>
-        <div class="h-score">${h.s1}<span class="h-x">-</span>${h.s2}</div>
+        </div>`;
+      const side2 = `
         <div class="h-side p2">
-          <span class="h-name${h.winner===2?' winner':''}">${escapeHtml(h.p2Name)}</span>
           ${h.winner===2?'<span class="h-crown">👑</span>':''}
           <img src="${ph2?ph2.dataUrl:''}">
-        </div>
+          <span class="h-name${h.winner===2?' winner':''}">${escapeHtml(h.p2Name)}</span>
+        </div>`;
+      // winner is always shown on the left so it's clear at a glance
+      const leftSide = h.winner===2 ? side2 : side1;
+      const rightSide = h.winner===2 ? side1 : side2;
+      const el = document.createElement("div");
+      el.className = "history-item" + (h.finalBoard ? " clickable" : "");
+      el.innerHTML = `
+        <div class="h-date">${formatDate(h.date).replace("\n","<br>")}</div>
+        ${leftSide}
+        <div class="h-score">${h.s1}<span class="h-x">-</span>${h.s2}</div>
+        ${rightSide}
         ${h.winner===0?'<div style="font-size:15px;">🤝</div>':''}
       `;
+      if(h.finalBoard){
+        el.onclick = ()=> showHistoryBoard(h);
+      }
       list.appendChild(el);
     });
   }
+
+  // ---------- history board viewer ----------
+  function showHistoryBoard(h){
+    const wrap = $("historyBoardWrap");
+    wrap.className = "board-wrap theme-" + (h.theme || "park");
+    const boardEl = $("historyBoard");
+    boardEl.innerHTML = "";
+    const ph1 = photoById(h.p1PhotoId), ph2 = photoById(h.p2PhotoId);
+    for(let r=0;r<8;r++){
+      for(let c=0;c<8;c++){
+        const val = h.finalBoard[r][c];
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        if(val!==0){
+          const ph = val===1?ph1:ph2;
+          cell.innerHTML = `<div class="piece show p${val}"><img src="${ph?ph.dataUrl:''}"></div>`;
+        }
+        boardEl.appendChild(cell);
+      }
+    }
+    $("historyBoardTitle").textContent =
+      h.winner===0 ? "🤝 ひきわけ" : (h.winner===1?h.p1Name:h.p2Name) + " のかち！";
+    $("historyBoardScore").textContent = `${h.p1Name} ${h.s1} - ${h.s2} ${h.p2Name}`;
+    $("historyBoardOverlay").classList.add("active");
+  }
+  $("historyBoardCloseBtn").onclick = ()=>{ $("historyBoardOverlay").classList.remove("active"); };
   $("clearHistoryBtn").onclick = ()=>{
     showConfirm("対戦記録をすべて削除しますか？", ()=>{
       localStorage.removeItem(LS_HISTORY);
