@@ -27,12 +27,12 @@
   h1{font-size:22px;margin:4px 0 16px;text-align:center;}
   h2{font-size:17px;margin:20px 0 10px;}
   .card{background:var(--card);border-radius:16px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.06);}
-  button{
+  button,label.btn{
     font-family:inherit;font-size:15px;border:none;border-radius:12px;
     padding:12px 16px;cursor:pointer;background:var(--accent);color:#fff;font-weight:600;
   }
-  button.secondary{background:var(--accent2);}
-  button.ghost{background:#eee;color:var(--text);font-weight:500;}
+  button.secondary,label.btn.secondary{background:var(--accent2);}
+  button.ghost,label.btn.ghost{background:#eee;color:var(--text);font-weight:500;}
   button:active{filter:brightness(0.92);}
   .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
   .full{width:100%;}
@@ -266,7 +266,20 @@
 
   <button id="showRankingBtn" class="full secondary" style="margin-bottom:14px;">🏆 ランキングを見る</button>
 
-  <div style="text-align:center;font-size:10px;color:#ccc;padding:8px 0 20px;">build 2026-08-08-b</div>
+  <div class="card">
+    <h2 style="margin-top:0;">💾 データのバックアップ</h2>
+    <div class="picker-label">写真や対戦記録はこの端末にだけ保存されています。機種変更や消去に備えて、ときどき書き出しておくと安心です</div>
+    <div class="row">
+      <button id="exportBtn" class="full">📤 書き出す</button>
+      <label class="btn full secondary" id="importBtnLabel" style="display:flex;align-items:center;justify-content:center;text-align:center;">
+        📥 読み込む
+        <input type="file" id="importInput" accept="application/json,.json">
+      </label>
+    </div>
+    <div id="backupCheck" style="text-align:center;margin-top:8px;font-size:13px;color:#888;"></div>
+  </div>
+
+  <div style="text-align:center;font-size:10px;color:#ccc;padding:8px 0 20px;">build 2026-08-08-c</div>
 </div>
 
 <!-- ============ RANKING SCREEN ============ -->
@@ -974,6 +987,56 @@
       renderHistory();
     });
   };
+
+  // ---------- backup (export / import) ----------
+  function pad2(n){ return String(n).padStart(2,"0"); }
+
+  $("exportBtn").onclick = ()=>{
+    const data = {
+      app: "familyOthello",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      photos: JSON.parse(localStorage.getItem(LS_PHOTOS) || "[]"),
+      settings: JSON.parse(localStorage.getItem(LS_SETTINGS) || "null"),
+      history: JSON.parse(localStorage.getItem(LS_HISTORY) || "[]")
+    };
+    const blob = new Blob([JSON.stringify(data)], {type: "application/json"});
+    const url = URL.createObjectURL(blob);
+    const d = new Date();
+    const fname = `マイオセロ_バックアップ_${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}.json`;
+    const a = document.createElement("a");
+    a.href = url; a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=> URL.revokeObjectURL(url), 2000);
+    $("backupCheck").textContent = "✅ " + fname + " を書き出しました";
+  };
+
+  $("importInput").addEventListener("change", (e)=>{
+    const file = e.target.files[0];
+    e.target.value = "";
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      let data;
+      try{ data = JSON.parse(reader.result); }
+      catch(err){ showToast("このファイルは読み込めませんでした"); return; }
+      if(!data || data.app!=="familyOthello" || !Array.isArray(data.photos) || !Array.isArray(data.history)){
+        showToast("マイオセロのバックアップファイルではないようです");
+        return;
+      }
+      showConfirm("現在の写真・対戦記録・設定を、読み込んだデータで上書きします。よろしいですか？", ()=>{
+        localStorage.setItem(LS_PHOTOS, JSON.stringify(data.photos));
+        localStorage.setItem(LS_HISTORY, JSON.stringify(data.history));
+        if(data.settings) localStorage.setItem(LS_SETTINGS, JSON.stringify(data.settings));
+        else localStorage.removeItem(LS_SETTINGS);
+        location.reload();
+      });
+    };
+    reader.onerror = ()=>{ showToast("ファイルを読み込めませんでした"); };
+    reader.readAsText(file);
+  });
 
   // ---------- ranking ----------
   function computeRanking(){
