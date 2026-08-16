@@ -306,7 +306,7 @@
     <div id="backupCheck" style="text-align:center;margin-top:8px;font-size:13px;color:#888;"></div>
   </div>
 
-  <div style="text-align:center;font-size:10px;color:#ccc;padding:8px 0 20px;">build 2026-08-08-d</div>
+  <div style="text-align:center;font-size:10px;color:#ccc;padding:8px 0 20px;">build 2026-08-16-a</div>
 </div>
 
 <!-- ============ RANKING SCREEN ============ -->
@@ -398,7 +398,7 @@
   const $ = id => document.getElementById(id);
 
   // ---------- state ----------
-  let photos = loadPhotos(); // [{id,name,dataUrl}]
+  let photos = []; // [{id,name,dataUrl}] -- loaded from IndexedDB at startup, see init()
   let mode = "human"; // human | cpu
   let p1PhotoId = null, p2PhotoId = null;
   let theme = "park";
@@ -410,10 +410,64 @@
   let gameOver = false;
   let moveHistory = []; // stack of {board, turn} snapshots for "待った" (undo)
 
-  function loadPhotos(){
-    try{ return JSON.parse(localStorage.getItem(LS_PHOTOS)) || []; }catch(e){ return []; }
+  // ---------- photo storage (IndexedDB) ----------
+  // Photos are family photos as base64 data URLs; storing them in
+  // localStorage (5-10MB total budget, shared with settings/history) risks
+  // hitting the quota once a few photos are registered. IndexedDB has no
+  // such practical limit, so photos live there; localStorage keeps only the
+  // small settings/history JSON as before.
+  const IDB_NAME = "familyOthelloDB";
+  const IDB_STORE = "photos";
+  let dbPromise = null;
+  function openDB(){
+    if(dbPromise) return dbPromise;
+    dbPromise = new Promise((resolve,reject)=>{
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = ()=>{ req.result.createObjectStore(IDB_STORE, {keyPath:"id"}); };
+      req.onsuccess = ()=> resolve(req.result);
+      req.onerror = ()=> reject(req.error);
+    });
+    return dbPromise;
   }
-  function savePhotos(){ localStorage.setItem(LS_PHOTOS, JSON.stringify(photos)); }
+  async function idbGetAllPhotos(){
+    const db = await openDB();
+    return new Promise((resolve,reject)=>{
+      const tx = db.transaction(IDB_STORE, "readonly");
+      const req = tx.objectStore(IDB_STORE).getAll();
+      req.onsuccess = ()=> resolve(req.result || []);
+      req.onerror = ()=> reject(req.error);
+    });
+  }
+  async function idbReplaceAllPhotos(arr){
+    const db = await openDB();
+    return new Promise((resolve,reject)=>{
+      const tx = db.transaction(IDB_STORE, "readwrite");
+      const store = tx.objectStore(IDB_STORE);
+      store.clear();
+      arr.forEach(p=> store.put(p));
+      tx.oncomplete = ()=> resolve();
+      tx.onerror = ()=> reject(tx.error);
+    });
+  }
+  // One-time migration for people who already had photos saved under the
+  // old localStorage key; after this the key is removed so its quota is
+  // never touched by photos again.
+  async function migratePhotosFromLocalStorage(){
+    const raw = localStorage.getItem(LS_PHOTOS);
+    if(raw){
+      try{
+        const old = JSON.parse(raw);
+        if(Array.isArray(old) && old.length>0){
+          const existing = await idbGetAllPhotos();
+          if(existing.length===0) await idbReplaceAllPhotos(old);
+        }
+      }catch(e){}
+      localStorage.removeItem(LS_PHOTOS);
+    }
+  }
+  function savePhotos(){
+    idbReplaceAllPhotos(photos).catch(()=>{ showToast("写真の保存に失敗しました"); });
+  }
   function loadSettings(){
     try{
       const s = JSON.parse(localStorage.getItem(LS_SETTINGS));
@@ -1023,7 +1077,7 @@
       app: "familyOthello",
       version: 1,
       exportedAt: new Date().toISOString(),
-      photos: JSON.parse(localStorage.getItem(LS_PHOTOS) || "[]"),
+      photos: photos,
       settings: JSON.parse(localStorage.getItem(LS_SETTINGS) || "null"),
       history: JSON.parse(localStorage.getItem(LS_HISTORY) || "[]")
     };
@@ -1054,11 +1108,12 @@
         return;
       }
       showConfirm("現在の写真・対戦記録・設定を、読み込んだデータで上書きします。よろしいですか？", ()=>{
-        localStorage.setItem(LS_PHOTOS, JSON.stringify(data.photos));
-        localStorage.setItem(LS_HISTORY, JSON.stringify(data.history));
-        if(data.settings) localStorage.setItem(LS_SETTINGS, JSON.stringify(data.settings));
-        else localStorage.removeItem(LS_SETTINGS);
-        location.reload();
+        idbReplaceAllPhotos(data.photos).then(()=>{
+          localStorage.setItem(LS_HISTORY, JSON.stringify(data.history));
+          if(data.settings) localStorage.setItem(LS_SETTINGS, JSON.stringify(data.settings));
+          else localStorage.removeItem(LS_SETTINGS);
+          location.reload();
+        }).catch(()=>{ showToast("写真の読み込みに失敗しました"); });
       });
     };
     reader.onerror = ()=>{ showToast("ファイルを読み込めませんでした"); };
@@ -1180,13 +1235,18 @@
   }
 
   // ---------- init ----------
-  loadSettings();
-  renderGallery();
-  renderPickers();
-  renderHistory();
-  renderHintsCheck();
-  renderCpuLevelCheck();
-  $("themeSelect").value = theme;
+  async function init(){
+    loadSettings();
+    await migratePhotosFromLocalStorage();
+    try{ photos = await idbGetAllPhotos(); }catch(e){ photos = []; }
+    renderGallery();
+    renderPickers();
+    renderHistory();
+    renderHintsCheck();
+    renderCpuLevelCheck();
+    $("themeSelect").value = theme;
+  }
+  init();
 })();
 </script>
 </body>
