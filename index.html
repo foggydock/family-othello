@@ -144,6 +144,11 @@
   .history-item .h-side img{width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;}
   .history-item .h-side.p1 img{border:2px solid var(--p1-color);}
   .history-item .h-side.p2 img{border:2px solid var(--p2-color);}
+  /* shown instead of <img> when the player's photo has since been deleted */
+  .avatar-missing{border-radius:50%;flex-shrink:0;background:#e2ddd0;color:#a89f8c;display:flex;align-items:center;justify-content:center;box-sizing:border-box;}
+  .history-item .h-side .avatar-missing{width:26px;height:26px;font-size:12px;}
+  .history-item .h-side.p1 .avatar-missing{border:2px solid var(--p1-color);}
+  .history-item .h-side.p2 .avatar-missing{border:2px solid var(--p2-color);}
   .history-item .h-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:64px;}
   .history-item .h-name.winner{font-weight:700;}
   .history-item .h-crown{font-size:12px;flex-shrink:0;}
@@ -166,6 +171,7 @@
   #historyBoard .piece.p1{border:3px solid var(--p1-color);}
   #historyBoard .piece.p2{border:3px solid var(--p2-color);}
   #historyBoard .piece img{width:100%;height:100%;object-fit:cover;display:block;}
+  #historyBoard .piece.missing{background:#e2ddd0;color:#a89f8c;display:flex;align-items:center;justify-content:center;font-size:11px;}
 
   /* ranking */
   #rankingList{display:flex;flex-direction:column;gap:10px;}
@@ -184,6 +190,7 @@
   .rank-item .r-detail{font-size:12px;color:#888;}
   .rank-item .r-wins{font-size:18px;font-weight:800;color:var(--accent);flex-shrink:0;}
   .rank-item .cpu-avatar{width:44px;height:44px;border-radius:50%;flex-shrink:0;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.15);background:#556;display:flex;align-items:center;justify-content:center;font-size:22px;}
+  .rank-item .avatar-missing{width:44px;height:44px;font-size:20px;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.15);}
 
   /* result overlay board-peek */
   #resultOverlay.peek{background:rgba(0,0,0,0);pointer-events:none;}
@@ -520,6 +527,12 @@
 
   function photoById(id){ return photos.find(p=>p.id===id); }
   function photoForPlayer(player){ return photoById(player===1?p1PhotoId:p2PhotoId); }
+  // Used for history/ranking entries, where the photo may have been deleted
+  // since the record was saved; shows a neutral placeholder instead of a
+  // broken <img>.
+  function avatarTag(ph){
+    return ph ? `<img src="${escapeHtml(ph.dataUrl)}">` : `<div class="avatar-missing">？</div>`;
+  }
 
   // ---------- photo gallery (registration) ----------
   // Note: the "+" tile and its <input type=file> are static in the HTML and
@@ -1036,13 +1049,13 @@
       const side1 = `
         <div class="h-side p1">
           ${h.winner===1?'<span class="h-crown">👑</span>':''}
-          <img src="${escapeHtml(ph1?ph1.dataUrl:'')}">
+          ${avatarTag(ph1)}
           <span class="h-name${h.winner===1?' winner':''}">${escapeHtml(h.p1Name)}</span>
         </div>`;
       const side2 = `
         <div class="h-side p2">
           ${h.winner===2?'<span class="h-crown">👑</span>':''}
-          <span class="avatar-wrap"><img src="${escapeHtml(ph2?ph2.dataUrl:'')}">${h.p2IsCPU?'<span class="cpu-badge">🤖</span>':''}</span>
+          <span class="avatar-wrap">${avatarTag(ph2)}${h.p2IsCPU?'<span class="cpu-badge">🤖</span>':''}</span>
           <span class="h-name${h.winner===2?' winner':''}">${escapeHtml(h.p2Name)}</span>
         </div>`;
       // winner is always shown on the left so it's clear at a glance
@@ -1078,7 +1091,9 @@
         cell.className = "cell";
         if(val!==0){
           const ph = val===1?ph1:ph2;
-          cell.innerHTML = `<div class="piece show p${val}"><img src="${escapeHtml(ph?ph.dataUrl:'')}"></div>`;
+          cell.innerHTML = ph
+            ? `<div class="piece show p${val}"><img src="${escapeHtml(ph.dataUrl)}"></div>`
+            : `<div class="piece show p${val} missing">？</div>`;
         }
         boardEl.appendChild(cell);
       }
@@ -1206,9 +1221,7 @@
     ranking.forEach((r,i)=>{
       const isCPU = r.id==="cpu";
       const ph = isCPU ? null : photoById(r.id);
-      const avatar = isCPU
-        ? `<div class="cpu-avatar">🤖</div>`
-        : `<img src="${escapeHtml(ph?ph.dataUrl:'')}">`;
+      const avatar = isCPU ? `<div class="cpu-avatar">🤖</div>` : avatarTag(ph);
       const el = document.createElement("div");
       el.className = "rank-item" + (i<3 ? " top"+(i+1) : "");
       el.innerHTML = `
