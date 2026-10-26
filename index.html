@@ -15,6 +15,8 @@
     --accent:#e8956b;
     --accent2:#7fb0a0;
     --line:#d8d2c4;
+    --p1-color:#3b82f6;
+    --p2-color:#ef4444;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;height:100%;overflow-x:hidden;}
@@ -39,6 +41,7 @@
   button:active{filter:brightness(0.92);}
   .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
   .full{width:100%;}
+  #resumeBtn{display:block;} /* block, so column-span:all can stretch it over both iPad columns */
 
   /* photo gallery */
   .photo-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
@@ -54,7 +57,6 @@
   select{font-family:inherit;font-size:15px;padding:10px;border-radius:10px;border:1px solid var(--line);width:100%;background:#fff;}
 
   /* game screen */
-  :root{ --p1-color:#3b82f6; --p2-color:#ef4444; }
   #gameScreen{padding:10px;}
   .scorebar{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:8px;}
   .player-badge{display:flex;align-items:center;gap:8px;background:var(--card);border-radius:14px;padding:6px 10px;flex:1;box-shadow:0 2px 6px rgba(0,0,0,0.06);border:3px solid transparent;transition:background .2s,border-color .2s;}
@@ -142,13 +144,11 @@
   .history-item .h-date{font-size:11px;color:#999;width:70px;flex-shrink:0;line-height:1.3;}
   .history-item .h-side{display:flex;align-items:center;gap:5px;flex:1;min-width:0;}
   .history-item .h-side img{width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;}
-  .history-item .h-side.p1 img{border:2px solid var(--p1-color);}
-  .history-item .h-side.p2 img{border:2px solid var(--p2-color);}
   /* shown instead of <img> when the player's photo has since been deleted */
   .avatar-missing{border-radius:50%;flex-shrink:0;background:#e2ddd0;color:#a89f8c;display:flex;align-items:center;justify-content:center;box-sizing:border-box;}
   .history-item .h-side .avatar-missing{width:26px;height:26px;font-size:12px;}
-  .history-item .h-side.p1 .avatar-missing{border:2px solid var(--p1-color);}
-  .history-item .h-side.p2 .avatar-missing{border:2px solid var(--p2-color);}
+  .history-item .h-side.p1 img,.history-item .h-side.p1 .avatar-missing{border:2px solid var(--p1-color);}
+  .history-item .h-side.p2 img,.history-item .h-side.p2 .avatar-missing{border:2px solid var(--p2-color);}
   .history-item .h-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:64px;}
   .history-item .h-name.winner{font-weight:700;}
   .history-item .h-crown{font-size:12px;flex-shrink:0;}
@@ -165,12 +165,8 @@
   .history-board-card h2{margin:0 0 4px;font-size:17px;}
   .history-board-score{font-size:13px;color:#666;margin-bottom:12px;}
   #historyBoardWrap{border-radius:14px;padding:6px;margin-bottom:14px;}
-  #historyBoard{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);gap:1px;background:rgba(0,0,0,0.22);aspect-ratio:1;width:100%;border-radius:6px;overflow:hidden;}
-  #historyBoard .cell{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;}
-  #historyBoard .piece{width:82%;height:82%;border-radius:50%;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,0.35);background:#fff;box-sizing:border-box;}
-  #historyBoard .piece.p1{border:3px solid var(--p1-color);}
-  #historyBoard .piece.p2{border:3px solid var(--p2-color);}
-  #historyBoard .piece img{width:100%;height:100%;object-fit:cover;display:block;}
+  /* grid, cells and pieces come from the shared .board / .cell .piece rules */
+  #historyBoard{border-radius:6px;}
   #historyBoard .piece.missing{background:#e2ddd0;color:#a89f8c;display:flex;align-items:center;justify-content:center;font-size:11px;}
 
   /* ranking */
@@ -211,6 +207,7 @@
     .photo-grid{grid-template-columns:repeat(6,1fr);}
     #homeScreen{column-count:2;column-gap:20px;}
     #homeScreen h1,
+    #homeScreen > #resumeBtn,
     #homeScreen > #startBtn,
     #homeScreen > #showRankingBtn,
     #homeScreen > div[style*="text-align:center"]{
@@ -230,9 +227,12 @@
 <div id="homeScreen" class="screen active">
   <h1>🎲 マイオセロ</h1>
 
+  <button id="resumeBtn" class="full secondary" style="display:none;font-size:16px;padding:14px;margin-bottom:14px;"></button>
+
   <div class="card">
     <h2 style="margin-top:0;">📸 写真ギャラリー</h2>
     <div class="picker-label">家族の写真を登録しておくと、対戦のたびに選べます</div>
+    <div id="photoLoadError" style="display:none;color:#c0392b;font-size:13px;margin-bottom:8px;">⚠️ 登録済みの写真を読み込めませんでした。アプリを開き直してください</div>
     <div id="photoGallery" class="photo-grid">
       <label class="add-photo" id="addPhotoTile">
         ＋
@@ -314,7 +314,7 @@
     <div id="backupCheck" style="text-align:center;margin-top:8px;font-size:13px;color:#888;"></div>
   </div>
 
-  <div style="text-align:center;font-size:10px;color:#ccc;padding:8px 0 20px;">build 2026-08-26-a</div>
+  <div style="text-align:center;font-size:10px;color:#ccc;padding:8px 0 20px;">build 2026-10-27-a</div>
 </div>
 
 <!-- ============ RANKING SCREEN ============ -->
@@ -375,7 +375,7 @@
     <h2 id="historyBoardTitle"></h2>
     <div class="history-board-score" id="historyBoardScore"></div>
     <div id="historyBoardWrap" class="board-wrap">
-      <div id="historyBoard"></div>
+      <div id="historyBoard" class="board"></div>
     </div>
     <button class="ghost full" id="historyBoardCloseBtn">とじる</button>
   </div>
@@ -397,14 +397,18 @@
 <script>
 (function(){
   "use strict";
-  const LS_PHOTOS = "familyOthello_photos_v1";
   const LS_SETTINGS = "familyOthello_settings_v1";
   const LS_HISTORY = "familyOthello_history_v1";
+  const LS_CURRENT = "familyOthello_current_v1"; // unfinished game, so it survives a reload
+  const THEMES = ["park","space","ocean"];
+  const CPU_LEVELS = ["easy","normal","hard"];
+  const PASS_ALERT_MS = 1800;
 
   const $ = id => document.getElementById(id);
 
   // ---------- state ----------
   let photos = []; // [{id,name,dataUrl}] -- loaded from IndexedDB at startup, see init()
+  let photosLoadFailed = false; // IndexedDB couldn't be read at startup; see init()
   let mode = "human"; // human | cpu
   let p1PhotoId = null, p2PhotoId = null;
   let theme = "park";
@@ -415,8 +419,9 @@
   let turn = 1;
   let gameOver = false;
   let moveHistory = []; // stack of {board, turn} snapshots for "待った" (undo)
-  let historySaved = false; // guards against saving the same finished game twice
+  let savedRecordDate = null; // date of the history record saved for this finished game (null = not saved yet)
   let cpuTimer = null; // pending "CPU is thinking" timeout, so it can be cancelled on undo/restart
+  let passTimer = null; // pending auto-clear of the "〇〇はパス！" alert
 
   // ---------- photo storage (IndexedDB) ----------
   // Photos are family photos as base64 data URLs; storing them in
@@ -433,7 +438,7 @@
       const req = indexedDB.open(IDB_NAME, 1);
       req.onupgradeneeded = ()=>{ req.result.createObjectStore(IDB_STORE, {keyPath:"id"}); };
       req.onsuccess = ()=> resolve(req.result);
-      req.onerror = ()=> reject(req.error);
+      req.onerror = ()=>{ dbPromise = null; reject(req.error); }; // let a later call retry
     });
     return dbPromise;
   }
@@ -446,46 +451,37 @@
       req.onerror = ()=> reject(req.error);
     });
   }
-  async function idbReplaceAllPhotos(arr){
+  // Runs fn(store) in one readwrite transaction. If fn throws (e.g. a put()
+  // with a bad key), the transaction is aborted so a clear() queued earlier
+  // in fn never commits and the stored photos stay as they were.
+  async function idbWrite(fn){
     const db = await openDB();
     return new Promise((resolve,reject)=>{
       const tx = db.transaction(IDB_STORE, "readwrite");
-      const store = tx.objectStore(IDB_STORE);
-      store.clear();
-      arr.forEach(p=> store.put(p));
       tx.oncomplete = ()=> resolve();
       tx.onerror = ()=> reject(tx.error);
+      tx.onabort = ()=> reject(tx.error || new Error("aborted"));
+      try{ fn(tx.objectStore(IDB_STORE)); }
+      catch(e){ tx.abort(); reject(e); }
     });
   }
-  // One-time migration for people who already had photos saved under the
-  // old localStorage key; after this the key is removed so its quota is
-  // never touched by photos again.
-  async function migratePhotosFromLocalStorage(){
-    const raw = localStorage.getItem(LS_PHOTOS);
-    if(raw){
-      try{
-        const old = JSON.parse(raw);
-        if(Array.isArray(old) && old.length>0){
-          const existing = await idbGetAllPhotos();
-          if(existing.length===0) await idbReplaceAllPhotos(old);
-        }
-      }catch(e){}
-      localStorage.removeItem(LS_PHOTOS);
-    }
-  }
-  function savePhotos(){
-    idbReplaceAllPhotos(photos).catch(()=>{ showToast("写真の保存に失敗しました"); });
-  }
+  // Only import replaces the whole store. Adding/deleting a photo touches
+  // just that one entry, so an in-memory list that failed to load (and is
+  // therefore empty) can never wipe the photos that are actually stored.
+  function idbReplaceAllPhotos(arr){ return idbWrite(store=>{ store.clear(); arr.forEach(p=> store.put(p)); }); }
+  function idbPutPhoto(p){ return idbWrite(store=> store.put(p)); }
+  function idbDeletePhoto(id){ return idbWrite(store=> store.delete(id)); }
+
   function loadSettings(){
     try{
       const s = JSON.parse(localStorage.getItem(LS_SETTINGS));
       if(s){
-        mode = s.mode || "human";
-        p1PhotoId = s.p1PhotoId || null;
-        p2PhotoId = s.p2PhotoId || null;
-        theme = s.theme || "park";
-        hintsEnabled = s.hintsEnabled !== undefined ? s.hintsEnabled : true;
-        cpuLevel = s.cpuLevel || "normal";
+        mode = s.mode==="cpu" ? "cpu" : "human";
+        p1PhotoId = typeof s.p1PhotoId==="string" ? s.p1PhotoId : null;
+        p2PhotoId = typeof s.p2PhotoId==="string" ? s.p2PhotoId : null;
+        theme = THEMES.includes(s.theme) ? s.theme : "park";
+        hintsEnabled = s.hintsEnabled !== false;
+        cpuLevel = CPU_LEVELS.includes(s.cpuLevel) ? s.cpuLevel : "normal";
       }
     }catch(e){}
   }
@@ -496,27 +492,21 @@
   }
 
   // ---------- generic modal (replaces native prompt/confirm) ----------
-  function showConfirm(message, onOk){
+  // withInput: show the text field (prompt) instead of a plain confirm.
+  function openModal(message, withInput, placeholder, onOk){
+    const overlay = $("modalOverlay"), input = $("modalInput");
     $("modalMessage").textContent = message;
-    $("modalInput").style.display = "none";
-    $("modalOverlay").classList.add("active");
-    $("modalOkBtn").onclick = ()=>{ $("modalOverlay").classList.remove("active"); onOk(); };
-    $("modalCancelBtn").onclick = ()=>{ $("modalOverlay").classList.remove("active"); };
-  }
-  function showPrompt(message, placeholder, onOk){
-    $("modalMessage").textContent = message;
-    const input = $("modalInput");
-    input.style.display = "block";
+    input.style.display = withInput ? "block" : "none";
     input.value = "";
     input.placeholder = placeholder || "";
-    $("modalOverlay").classList.add("active");
-    setTimeout(()=>{ input.focus(); }, 100);
-    $("modalOkBtn").onclick = ()=>{
-      $("modalOverlay").classList.remove("active");
-      onOk(input.value.trim());
-    };
-    $("modalCancelBtn").onclick = ()=>{ $("modalOverlay").classList.remove("active"); };
+    overlay.classList.add("active");
+    if(withInput) setTimeout(()=>{ input.focus(); }, 100);
+    const close = ()=> overlay.classList.remove("active");
+    $("modalOkBtn").onclick = ()=>{ close(); onOk(input.value.trim()); };
+    $("modalCancelBtn").onclick = close;
   }
+  function showConfirm(message, onOk){ openModal(message, false, "", ()=> onOk()); }
+  function showPrompt(message, placeholder, onOk){ openModal(message, true, placeholder, onOk); }
 
   function showToast(msg){
     const t = $("toast");
@@ -533,6 +523,9 @@
   function avatarTag(ph){
     return ph ? `<img src="${escapeHtml(ph.dataUrl)}">` : `<div class="avatar-missing">？</div>`;
   }
+  function photoItemHTML(p){
+    return `<img src="${escapeHtml(p.dataUrl)}"><div class="name">${escapeHtml(p.name)}</div>`;
+  }
 
   // ---------- photo gallery (registration) ----------
   // Note: the "+" tile and its <input type=file> are static in the HTML and
@@ -545,7 +538,7 @@
     photos.forEach(p=>{
       const el = document.createElement("div");
       el.className = "photo-item";
-      el.innerHTML = `<img src="${escapeHtml(p.dataUrl)}"><div class="name">${escapeHtml(p.name)}</div><div class="del" data-id="${escapeHtml(p.id)}">×</div>`;
+      el.innerHTML = photoItemHTML(p) + `<div class="del" data-id="${escapeHtml(p.id)}">×</div>`;
       g.insertBefore(el, addTile);
     });
 
@@ -557,8 +550,9 @@
           photos = photos.filter(p=>p.id!==id);
           if(p1PhotoId===id) p1PhotoId=null;
           if(p2PhotoId===id) p2PhotoId=null;
-          savePhotos(); saveSettings();
-          renderGallery(); renderPickers();
+          idbDeletePhoto(id).catch(()=>{ showToast("写真の削除に失敗しました"); });
+          saveSettings();
+          renderGallery(); renderPickers(); renderHistory(); renderResume();
         });
       };
     });
@@ -573,8 +567,9 @@
     // resized 300px output below becomes a (much smaller) base64 string.
     resizeImageFromFile(file, 300, (dataUrl)=>{
       showPrompt("この写真の名前は？", "例：おとうさん（空欄でもOK）", (name)=>{
-        photos.push({id: "ph_"+Date.now()+"_"+Math.random().toString(36).slice(2,8), name, dataUrl});
-        savePhotos();
+        const photo = {id: "ph_"+Date.now()+"_"+Math.random().toString(36).slice(2,8), name, dataUrl};
+        photos.push(photo);
+        idbPutPhoto(photo).catch(()=>{ showToast("写真の保存に失敗しました"); });
         renderGallery();
         renderPickers();
       });
@@ -628,7 +623,7 @@
     photos.forEach(p=>{
       const el = document.createElement("div");
       el.className = "photo-item" + (p.id===selectedId ? " selected":"");
-      el.innerHTML = `<img src="${escapeHtml(p.dataUrl)}"><div class="name">${escapeHtml(p.name)}</div>`;
+      el.innerHTML = photoItemHTML(p);
       el.onclick = ()=> onPick(p.id);
       container.appendChild(el);
     });
@@ -653,11 +648,12 @@
   $("hintsOffBtn").onclick = ()=>{ hintsEnabled=false; saveSettings(); renderHintsCheck(); };
 
   $("startBtn").onclick = ()=>{
-    if(!p1PhotoId){ showToast("プレイヤー1の写真を選んでください"); return; }
-    if(mode==="human" && !p2PhotoId){ showToast("プレイヤー2の写真を選んでください"); return; }
-    if(mode==="cpu" && !p2PhotoId){
-      // CPU default icon if no photo picked; but require pick for consistency
-      showToast("CPUの見た目（写真）も選んでください"); return;
+    // Check the photo actually exists, not just that an id is set: an id
+    // restored from settings/import can point at a photo that isn't here.
+    if(!photoById(p1PhotoId)){ showToast("プレイヤー1の写真を選んでください"); return; }
+    if(!photoById(p2PhotoId)){
+      showToast(mode==="cpu" ? "CPUの見た目（写真）も選んでください" : "プレイヤー2の写真を選んでください");
+      return;
     }
     startGame();
   };
@@ -671,14 +667,20 @@
     turn = 1;
     gameOver = false;
     moveHistory = [];
-    historySaved = false;
+    savedRecordDate = null;
   }
 
   function inBounds(r,c){ return r>=0&&r<8&&c>=0&&c<8; }
+  function opponent(player){ return player===1?2:1; }
+  function cloneBoard(b){ return b.map(row=>row.slice()); }
+  function isBoard(b){
+    return Array.isArray(b) && b.length===8 && b.every(row=>
+      Array.isArray(row) && row.length===8 && row.every(v=> v===0||v===1||v===2));
+  }
 
   function flipsFor(b, r, c, player){
     if(b[r][c]!==0) return [];
-    const opp = player===1?2:1;
+    const opp = opponent(player);
     let allFlips = [];
     for(const [dr,dc] of DIRS){
       let rr=r+dr, cc=c+dc;
@@ -827,13 +829,13 @@
   }
 
   function pushHistory(){
-    moveHistory.push({board: board.map(row=>row.slice()), turn});
-    if(moveHistory.length>200) moveHistory.shift();
+    moveHistory.push({board: cloneBoard(board), turn});
   }
 
   function afterMove(){
-    const next = turn===1?2:1;
+    const next = opponent(turn);
     const nextMoves = validMoves(board, next);
+    let passed = false;
     if(nextMoves.length>0){
       turn = next;
     } else {
@@ -842,35 +844,50 @@
         endGame();
         return;
       } else {
-        const passMsg = "⏭️ " + nameFor(next) + "はパス！";
-        const statusEl = $("statusMsg");
-        statusEl.textContent = passMsg;
-        statusEl.classList.add("pass-alert");
-        setTimeout(()=>{
-          statusEl.classList.remove("pass-alert");
-          if(statusEl.textContent===passMsg) statusEl.textContent = "";
-        }, 1800);
+        showPassAlert("⏭️ " + nameFor(next) + "はパス！");
+        passed = true;
       }
     }
     renderBoard();
-    maybeCPUMove();
+    saveCurrentGame();
+    maybeCPUMove(passed);
   }
 
-  function nameFor(player){
-    if(player===2 && mode==="cpu") return "CPU";
-    const ph = photoForPlayer(player);
+  // One tracked timer, so a stale timer from an earlier pass can never cut
+  // a newer pass alert short.
+  function showPassAlert(msg){
+    clearStatus();
+    const statusEl = $("statusMsg");
+    statusEl.textContent = msg;
+    statusEl.classList.add("pass-alert");
+    passTimer = setTimeout(clearStatus, PASS_ALERT_MS);
+  }
+  function clearStatus(){
+    if(passTimer){ clearTimeout(passTimer); passTimer = null; }
+    const statusEl = $("statusMsg");
+    statusEl.textContent = "";
+    statusEl.classList.remove("pass-alert");
+  }
+
+  function playerLabel(player, photoId, isCPU){
+    if(player===2 && isCPU) return "CPU";
+    const ph = photoById(photoId);
     const name = ph && ph.name && ph.name.trim();
     return name || (player===1?"プレイヤー1":"プレイヤー2");
   }
+  function nameFor(player){
+    return playerLabel(player, player===1?p1PhotoId:p2PhotoId, mode==="cpu");
+  }
 
-  function maybeCPUMove(){
+  // justPassed: the human was just passed. Keep that alert up for its full
+  // time and let the CPU move right after it, instead of replacing it with
+  // "考え中" and wiping it 0.55s later.
+  function maybeCPUMove(justPassed){
     if(gameOver) return;
     if(mode!=="cpu" || turn!==2) return;
-    const statusEl = $("statusMsg");
-    // Don't stomp the "〇〇はパス！" alert that afterMove() may have just shown;
-    // it clears itself, and the CPU is about to overwrite it below anyway.
-    if(!statusEl.classList.contains("pass-alert")){
-      statusEl.textContent = "🤖 CPUが考え中...";
+    if(!justPassed){
+      clearStatus();
+      $("statusMsg").textContent = "🤖 CPUが考え中...";
     }
     cpuTimer = setTimeout(()=>{
       cpuTimer = null;
@@ -880,10 +897,9 @@
       const best = pickCPUMove(moves, cpuLevel);
       pushHistory();
       applyMove(board, best.r, best.c, 2, best.flips);
-      statusEl.classList.remove("pass-alert");
-      statusEl.textContent = "";
+      clearStatus();
       afterMove();
-    }, 550);
+    }, justPassed ? PASS_ALERT_MS : 550);
   }
 
   function cancelCpuTimer(){
@@ -911,7 +927,7 @@
   }
 
   function evaluateBoard(b, cpuPlayer){
-    const opp = cpuPlayer===1?2:1;
+    const opp = opponent(cpuPlayer);
     let score = 0;
     for(let r=0;r<8;r++) for(let c=0;c<8;c++){
       if(b[r][c]===cpuPlayer) score += WEIGHT[r][c];
@@ -923,7 +939,7 @@
   // minimax with alpha-beta pruning; scores are always from cpuPlayer's perspective
   function minimax(b, player, depth, alpha, beta, cpuPlayer){
     const moves = validMoves(b, player);
-    const nextPlayer = player===1?2:1;
+    const nextPlayer = opponent(player);
     if(moves.length===0){
       // Check for true game-over (both sides stuck) before honoring the depth
       // cutoff below, so a won/lost position at the search horizon is scored
@@ -942,7 +958,7 @@
     const maximizing = player===cpuPlayer;
     let value = maximizing ? -Infinity : Infinity;
     for(const m of moves){
-      const nb = b.map(row=>row.slice());
+      const nb = cloneBoard(b);
       applyMove(nb, m.r, m.c, player, m.flips);
       const s = minimax(nb, nextPlayer, depth-1, alpha, beta, cpuPlayer);
       if(maximizing){
@@ -960,9 +976,9 @@
   function pickCPUMoveHard(moves, cpuPlayer){
     let best = null, bestScore = -Infinity;
     for(const m of moves){
-      const nb = board.map(row=>row.slice());
+      const nb = cloneBoard(board);
       applyMove(nb, m.r, m.c, cpuPlayer, m.flips);
-      const score = minimax(nb, cpuPlayer===1?2:1, 3, bestScore, Infinity, cpuPlayer);
+      const score = minimax(nb, opponent(cpuPlayer), 3, bestScore, Infinity, cpuPlayer);
       if(score>bestScore){ bestScore=score; best=m; }
     }
     return best;
@@ -1005,32 +1021,60 @@
 
     // Guard against saving the same finished game twice (e.g. if this ever
     // gets triggered again for the same conclusion without a new game/undo).
-    if(!historySaved){
-      saveHistoryRecord(s1, s2);
-      historySaved = true;
+    if(savedRecordDate===null){
+      savedRecordDate = saveHistoryRecord(s1, s2);
     }
+    saveCurrentGame(); // game is over, so this drops the resumable copy
   }
 
   // ---------- history ----------
   function loadHistory(){
-    try{ return JSON.parse(localStorage.getItem(LS_HISTORY)) || []; }catch(e){ return []; }
+    try{
+      const h = JSON.parse(localStorage.getItem(LS_HISTORY));
+      return Array.isArray(h) ? h : [];
+    }catch(e){ return []; }
   }
+  function writeHistory(history){
+    try{ localStorage.setItem(LS_HISTORY, JSON.stringify(history)); return true; }
+    catch(e){ showToast("対戦記録の保存に失敗しました"); return false; }
+  }
+  // Returns the new record's date, which identifies it for removeHistoryRecord().
   function saveHistoryRecord(s1, s2){
     const history = loadHistory();
+    const date = Date.now();
     history.unshift({
-      date: Date.now(),
+      date,
       p1PhotoId, p2PhotoId,
       p1Name: nameFor(1), p2Name: nameFor(2),
       s1, s2,
       winner: s1===s2 ? 0 : (s1>s2?1:2),
-      finalBoard: board.map(row=>row.slice()),
+      finalBoard: cloneBoard(board),
       theme,
       p2IsCPU: mode==="cpu",
       cpuLevel: mode==="cpu" ? cpuLevel : undefined
     });
     while(history.length>30) history.pop();
-    try{ localStorage.setItem(LS_HISTORY, JSON.stringify(history)); }
-    catch(e){ showToast("対戦記録の保存に失敗しました"); }
+    writeHistory(history);
+    return date;
+  }
+  function removeHistoryRecord(date){
+    const history = loadHistory();
+    const kept = history.filter(h=> !(h && h.date===date));
+    if(kept.length!==history.length) writeHistory(kept);
+  }
+  // Shape check for records coming from a backup file. Older versions
+  // didn't save finalBoard/theme/p2IsCPU, so those stay optional.
+  function isValidHistoryRecord(h){
+    const isScore = n=> Number.isInteger(n) && n>=0 && n<=64;
+    const isOptId = v=> v==null || typeof v==="string";
+    return !!h && typeof h==="object"
+      && typeof h.date==="number"
+      && isScore(h.s1) && isScore(h.s2)
+      && (h.winner===0 || h.winner===1 || h.winner===2)
+      && typeof h.p1Name==="string" && typeof h.p2Name==="string"
+      && isOptId(h.p1PhotoId) && isOptId(h.p2PhotoId)
+      && (h.finalBoard===undefined || isBoard(h.finalBoard))
+      && (h.theme===undefined || THEMES.includes(h.theme));
   }
   function formatDate(ts){
     const d = new Date(ts);
@@ -1044,7 +1088,8 @@
       return;
     }
     list.innerHTML = "";
-    history.forEach((h,idx)=>{
+    history.forEach(h=>{
+      if(!h || typeof h!=="object") return;
       const ph1 = photoById(h.p1PhotoId), ph2 = photoById(h.p2PhotoId);
       const side1 = `
         <div class="h-side p1">
@@ -1058,19 +1103,22 @@
           <span class="avatar-wrap">${avatarTag(ph2)}${h.p2IsCPU?'<span class="cpu-badge">🤖</span>':''}</span>
           <span class="h-name${h.winner===2?' winner':''}">${escapeHtml(h.p2Name)}</span>
         </div>`;
-      // winner is always shown on the left so it's clear at a glance
-      const leftSide = h.winner===2 ? side2 : side1;
-      const rightSide = h.winner===2 ? side1 : side2;
+      // winner is always shown on the left so it's clear at a glance; the
+      // score swaps with the sides so each number stays next to its player
+      const p2Left = h.winner===2;
+      const leftSide = p2Left ? side2 : side1;
+      const rightSide = p2Left ? side1 : side2;
+      const s1 = Number(h.s1) || 0, s2 = Number(h.s2) || 0;
       const el = document.createElement("div");
-      el.className = "history-item" + (h.finalBoard ? " clickable" : "");
+      el.className = "history-item" + (isBoard(h.finalBoard) ? " clickable" : "");
       el.innerHTML = `
         <div class="h-date">${formatDate(h.date).replace("\n","<br>")}</div>
         ${leftSide}
-        <div class="h-score">${h.s1}<span class="h-x">-</span>${h.s2}</div>
+        <div class="h-score">${p2Left ? s2 : s1}<span class="h-x">-</span>${p2Left ? s1 : s2}</div>
         ${rightSide}
         ${h.winner===0?'<div style="font-size:15px;">🤝</div>':''}
       `;
-      if(h.finalBoard){
+      if(isBoard(h.finalBoard)){
         el.onclick = ()=> showHistoryBoard(h);
       }
       list.appendChild(el);
@@ -1089,7 +1137,7 @@
         const val = h.finalBoard[r][c];
         const cell = document.createElement("div");
         cell.className = "cell";
-        if(val!==0){
+        if(val===1 || val===2){
           const ph = val===1?ph1:ph2;
           cell.innerHTML = ph
             ? `<div class="piece show p${val}"><img src="${escapeHtml(ph.dataUrl)}"></div>`
@@ -1115,6 +1163,12 @@
   function pad2(n){ return String(n).padStart(2,"0"); }
 
   $("exportBtn").onclick = ()=>{
+    // A backup made while photos failed to load would contain no photos,
+    // and importing it later would erase them.
+    if(photosLoadFailed){
+      showToast("写真を読み込めていないため書き出せません。アプリを開き直してください");
+      return;
+    }
     try{
       const data = {
         app: "familyOthello",
@@ -1154,25 +1208,45 @@
         showToast("マイオセロのバックアップファイルではないようです");
         return;
       }
-      // Every photo needs a valid id (it's the IndexedDB keyPath) and a
-      // dataUrl; a single malformed entry would otherwise abort partway
-      // through the write and wipe out the photos already on this device.
+      // Every photo needs a valid id (it's the IndexedDB keyPath) and an
+      // embedded image (data:image/...), never a URL that would make the app
+      // fetch something from elsewhere.
       const hasInvalidPhoto = data.photos.some(p=>
-        !p || typeof p.id!=="string" || !p.id || typeof p.dataUrl!=="string" || !p.dataUrl
+        !p || typeof p.id!=="string" || !p.id
+        || typeof p.dataUrl!=="string" || !/^data:image\/[a-z0-9.+-]+;base64,/i.test(p.dataUrl)
+        || (p.name!=null && typeof p.name!=="string")
       );
       if(hasInvalidPhoto){
         showToast("バックアップの写真データが壊れているため読み込めませんでした");
         return;
       }
+      if(!data.history.every(isValidHistoryRecord)
+         || (data.settings!=null && (typeof data.settings!=="object" || Array.isArray(data.settings)))){
+        showToast("バックアップの対戦記録・設定が壊れているため読み込めませんでした");
+        return;
+      }
+      const newPhotos = data.photos.map(p=>({id:p.id, name:p.name||"", dataUrl:p.dataUrl}));
       showConfirm("現在の写真・対戦記録・設定を、読み込んだデータで上書きします。よろしいですか？", ()=>{
-        idbReplaceAllPhotos(data.photos).then(()=>{
+        // Write the small localStorage part first and keep the old values,
+        // so a failure on either side leaves the device as it was instead
+        // of half old, half imported.
+        const oldHistory = localStorage.getItem(LS_HISTORY);
+        const oldSettings = localStorage.getItem(LS_SETTINGS);
+        const restore = ()=>{
           try{
-            localStorage.setItem(LS_HISTORY, JSON.stringify(data.history));
-            if(data.settings) localStorage.setItem(LS_SETTINGS, JSON.stringify(data.settings));
-            else localStorage.removeItem(LS_SETTINGS);
-          }catch(e){ showToast("対戦記録・設定の読み込みに失敗しました"); return; }
+            if(oldHistory===null) localStorage.removeItem(LS_HISTORY); else localStorage.setItem(LS_HISTORY, oldHistory);
+            if(oldSettings===null) localStorage.removeItem(LS_SETTINGS); else localStorage.setItem(LS_SETTINGS, oldSettings);
+          }catch(e){}
+        };
+        try{
+          localStorage.setItem(LS_HISTORY, JSON.stringify(data.history.slice(0,30)));
+          if(data.settings) localStorage.setItem(LS_SETTINGS, JSON.stringify(data.settings));
+          else localStorage.removeItem(LS_SETTINGS);
+        }catch(e){ restore(); showToast("対戦記録・設定の読み込みに失敗しました"); return; }
+        idbReplaceAllPhotos(newPhotos).then(()=>{
+          try{ localStorage.removeItem(LS_CURRENT); }catch(e){}
           location.reload();
-        }).catch(()=>{ showToast("写真の読み込みに失敗しました"); });
+        }).catch(()=>{ restore(); showToast("写真の読み込みに失敗しました"); });
       });
     };
     reader.onerror = ()=>{ showToast("ファイルを読み込めませんでした"); };
@@ -1185,10 +1259,13 @@
     const stats = {};
     function ensure(id){ if(id && !stats[id]) stats[id] = {id, wins:0, losses:0, draws:0, games:0}; }
     history.forEach(h=>{
+      if(!h || typeof h!=="object") return;
       // CPU games use a human family member's photo purely for looks, so its
       // wins/losses must not be attributed to that person's own stats — key
-      // them under a dedicated "cpu" entry instead of h.p2PhotoId.
-      const isCPU = h.p2IsCPU || h.p2Name==="CPU";
+      // them under a dedicated "cpu" entry instead of h.p2PhotoId. Records
+      // older than the p2IsCPU flag are recognised by the "CPU" name; newer
+      // ones trust the flag, so a family photo named "CPU" stays a person.
+      const isCPU = h.p2IsCPU!==undefined ? !!h.p2IsCPU : h.p2Name==="CPU";
       const p2Key = isCPU ? "cpu" : h.p2PhotoId;
       ensure(h.p1PhotoId); ensure(p2Key);
       if(h.p1PhotoId){
@@ -1260,24 +1337,92 @@
     startGame();
   };
 
-  function startGame(){
+  function startGame(){ enterGame(null); }
+
+  // saved: an unfinished game from loadCurrentGame() to continue, or null
+  // for a fresh game.
+  function enterGame(saved){
     cancelCpuTimer();
     setupPlayerBadges();
     initBoard();
+    if(saved){
+      board = saved.board;
+      turn = saved.turn;
+      moveHistory = saved.moveHistory;
+    }
     buildBoardDOM();
     $("gameBoardWrap").className = "board-wrap theme-"+theme;
+    clearStatus();
     renderBoard();
-    $("statusMsg").textContent = "";
+    saveCurrentGame();
     showScreen("gameScreen");
+    maybeCPUMove(false); // a game saved while the CPU was "thinking" resumes on its turn
   }
 
-  $("backHomeBtn").onclick = ()=>{ cancelCpuTimer(); renderHistory(); showScreen("homeScreen"); };
+  // ---------- resume an unfinished game (survives reloads / leaving the screen) ----------
+  function saveCurrentGame(){
+    try{
+      // nothing worth resuming before the first move or after the game ended
+      if(gameOver || moveHistory.length===0){ localStorage.removeItem(LS_CURRENT); return; }
+      localStorage.setItem(LS_CURRENT, JSON.stringify({
+        board, turn, moveHistory, mode, p1PhotoId, p2PhotoId, theme, cpuLevel
+      }));
+    }catch(e){}
+  }
+  function loadCurrentGame(){
+    try{
+      const g = JSON.parse(localStorage.getItem(LS_CURRENT));
+      const isTurn = t=> t===1 || t===2;
+      if(g && isBoard(g.board) && isTurn(g.turn)
+         && Array.isArray(g.moveHistory) && g.moveHistory.every(e=> e && isBoard(e.board) && isTurn(e.turn))
+         && (g.mode==="human" || g.mode==="cpu")
+         && photoById(g.p1PhotoId) && photoById(g.p2PhotoId)){
+        return g;
+      }
+    }catch(e){}
+    return null;
+  }
+  function renderResume(){
+    const g = loadCurrentGame();
+    const btn = $("resumeBtn");
+    btn.style.display = g ? "" : "none";
+    if(g){
+      const n1 = playerLabel(1, g.p1PhotoId, false);
+      const n2 = playerLabel(2, g.p2PhotoId, g.mode==="cpu");
+      btn.textContent = `▶ つづきから（${n1} vs ${n2}）`;
+    }
+  }
+  $("resumeBtn").onclick = ()=>{
+    const g = loadCurrentGame();
+    if(!g){ renderResume(); return; }
+    // The game is played with the settings it was started with.
+    mode = g.mode; p1PhotoId = g.p1PhotoId; p2PhotoId = g.p2PhotoId;
+    theme = THEMES.includes(g.theme) ? g.theme : "park";
+    cpuLevel = CPU_LEVELS.includes(g.cpuLevel) ? g.cpuLevel : "normal";
+    saveSettings();
+    renderPickers(); renderCpuLevelCheck();
+    $("themeSelect").value = theme;
+    enterGame(g);
+  };
+
+  $("backHomeBtn").onclick = ()=>{
+    cancelCpuTimer();
+    closeResultOverlay(); // otherwise "結果に戻る" stays floating over the home screen after a board peek
+    renderHistory(); renderResume();
+    showScreen("homeScreen");
+  };
   $("restartBtn").onclick = ()=>{
     showConfirm("最初からやり直しますか？", ()=>{ startGame(); });
   };
   $("undoBtn").onclick = ()=>{
     if(moveHistory.length===0){ showToast("これ以上戻れません"); return; }
     cancelCpuTimer();
+    // Undoing out of a finished game means it didn't end after all: drop the
+    // record saved for it, or the replayed ending would be counted twice.
+    if(gameOver && savedRecordDate!==null){
+      removeHistoryRecord(savedRecordDate);
+      savedRecordDate = null;
+    }
     let entry = moveHistory.pop();
     // In CPU mode, only the human's own moves should count as an undo step;
     // if the popped entry belongs to the CPU's reply, also undo the human
@@ -1290,11 +1435,10 @@
     board = entry.board;
     turn = entry.turn;
     gameOver = false;
-    historySaved = false;
     closeResultOverlay();
-    $("statusMsg").textContent = "";
-    $("statusMsg").classList.remove("pass-alert");
+    clearStatus();
     renderBoard();
+    saveCurrentGame();
   };
 
   function showScreen(id){
@@ -1305,11 +1449,13 @@
   // ---------- init ----------
   async function init(){
     loadSettings();
-    await migratePhotosFromLocalStorage();
-    try{ photos = await idbGetAllPhotos(); }catch(e){ photos = []; }
+    try{ photos = await idbGetAllPhotos(); }
+    catch(e){ photos = []; photosLoadFailed = true; }
+    $("photoLoadError").style.display = photosLoadFailed ? "" : "none";
     renderGallery();
     renderPickers();
     renderHistory();
+    renderResume();
     renderHintsCheck();
     renderCpuLevelCheck();
     $("themeSelect").value = theme;
